@@ -1,10 +1,11 @@
 # doc: https://docs.manim.community/en/stable/index.html
-# run: manim scene.py <ClassName> -pqh
+# run: manim -pqh scene.py <ClassName>
 import math
+
 from manim import *
 
 
-class BumpWaveAnimation(Scene):
+class WavePropInBar(Scene):
     def func(self, x, c, t):
         X = x - c*t
         # bump function
@@ -19,18 +20,20 @@ class BumpWaveAnimation(Scene):
         axes = Axes(
             # 坐标轴数值范围和步长
             x_range=[0, 10, 1],
-            y_range=[0, .5, .1],
+            y_range=[0, .4, .1],
             # 坐标轴长度（比例）
             x_length=10,
             y_length=2,
             axis_config={"color": GREEN},
             x_axis_config={
-                "numbers_to_include": np.arange(0, 10, 1),  # 小尺度
-                "numbers_with_elongated_ticks": np.arange(0, 10, 1),  # 大尺度
+                # 尺度标出数值
+                "numbers_to_include": np.arange(-.01, 10.01, 2),
+                # 大尺度标记
+                "numbers_with_elongated_ticks": np.arange(-.01, 10.01, 2),
             },
             y_axis_config={
-                "numbers_to_include": np.arange(0, .5, .2),
-                "numbers_with_elongated_ticks": np.arange(0, .5, .2),
+                "numbers_to_include": np.arange(0, .41, .2),
+                "numbers_with_elongated_ticks": np.arange(0, .41, .2),
             },
             tips=False,  # 坐标箭头
         )
@@ -49,4 +52,4 @@ class BumpWaveAnimation(Scene):
             t.get_value()).next_to(label, RIGHT))
         plot = VGroup(axes, sin_graph, t_number, axes_labels, label)
         self.add(plot)
-        self.play(t.animate.set_value(10))
+        self.play(t.animate.set_value(10), rate_func=linear)
