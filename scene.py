@@ -178,14 +178,14 @@ class EulerFormula(Scene):
 
         self.orbit_dot_to_x_axis_line = always_redraw(
             get_orbit_dot_to_x_axis_line)
-        
+
         # orbit_dot to y axis line
         def get_orbit_dot_to_y_axis_line():
             pos_line_start = self.orbit_dot.get_center()
             pos_line_end = np.array(
                 [y_axis_pos_x, self.orbit_dot.get_center()[1], 0])
             return Line(pos_line_start, pos_line_end, color=PURPLE)
-        
+
         self.orbit_dot_to_y_axis_line = always_redraw(
             get_orbit_dot_to_y_axis_line)
 
@@ -197,7 +197,7 @@ class EulerFormula(Scene):
                          max_stroke_width_to_length_ratio=2, buff=0)
 
         self.origin_to_x_axis_arrow = always_redraw(get_origin_to_x_axis_arrow)
-        
+
         # origin to y axis arrow
         def get_origin_to_y_axis_arrow():
             pos_end = np.array(
@@ -229,6 +229,8 @@ class EulerFormula(Scene):
 
         self.equation = MathTex(
             r"e^{i \theta} = \cos(\theta) + i \sin(\theta)").move_to([0, 0, 0])
+        
+        # ticks
         x_labels = [
             MathTex("\pi"), MathTex("2 \pi"),
             MathTex("3 \pi"), MathTex("4 \pi"), MathTex("5 \pi")
@@ -247,6 +249,15 @@ class EulerFormula(Scene):
             label.move_to(self.origin).shift(1.25*LEFT)
             label.shift(self.y_rate*PI * (i+1) * DOWN)
             self.add(label)
+        
+        # theta value
+        self.theta_label = MathTex(r"\theta = ").next_to(self.equation, DOWN)
+        self.add(self.theta_label)
+
+        def get_theta():
+            return DecimalNumber(self.t, num_decimal_places=2).next_to(self.theta_label, RIGHT)
+
+        self.theta = always_redraw(get_theta)
 
         self.add(self.orbit_dot)
         self.add(self.arrow)
@@ -261,5 +272,6 @@ class EulerFormula(Scene):
         self.add(self.orbit_dot_to_y_curve_line)
         self.add(self.orbit_dot_to_x_curve_line)
         self.add(self.equation)
+        self.add(self.theta)
 
         self.wait(2*PI * 2.5)
