@@ -84,7 +84,7 @@ class EulerFormula(Scene):
         self.x_rate, self.y_rate = .5, .3
 
         self.x_axis = Arrow(x_start, x_end, stroke_width=2,
-                            max_tip_length_to_length_ratio=.02,color=GREEN)
+                            max_tip_length_to_length_ratio=.02, color=GREEN)
         self.y_axis = Arrow(y_start, y_end, stroke_width=2,
                             max_tip_length_to_length_ratio=.025, color=GREEN)
 
@@ -95,7 +95,8 @@ class EulerFormula(Scene):
                              max_tip_length_to_length_ratio=.1, color=GREEN)
         self.im_axis.shift(.26*RIGHT)
 
-        self.re_label = MathTex("Re").next_to(self.re_axis, .2*RIGHT).rotate(-PI/2).scale(.8)
+        self.re_label = MathTex("Re").next_to(
+            self.re_axis, .2*RIGHT).rotate(-PI/2).scale(.8)
         self.im_label = MathTex("Im").next_to(self.im_axis, .2*UP).scale(.8)
 
         axis_label_x = MathTex(
@@ -273,15 +274,18 @@ class EulerFormula(Scene):
             y_label_group.add(label)
 
         # theta value
-        self.theta_label = MathTex(r"\theta = ").next_to(self.equation, DOWN, aligned_edge=LEFT)
+        self.theta_label = MathTex(r"\theta = ").next_to(
+            self.equation, DOWN, aligned_edge=LEFT)
 
         def get_theta():
             return DecimalNumber(self.t, num_decimal_places=2).next_to(self.theta_label, RIGHT)
 
         self.theta = always_redraw(get_theta)
 
-        axis_group = VGroup(self.x_axis, self.y_axis, self.im_axis, self.re_axis)
-        axis_label_group = VGroup(axis_label_x, axis_label_y, self.re_label, self.im_label)
+        axis_group = VGroup(self.x_axis, self.y_axis,
+                            self.im_axis, self.re_axis)
+        axis_label_group = VGroup(
+            axis_label_x, axis_label_y, self.re_label, self.im_label)
         axis_value_group = VGroup(x_label_group, y_label_group)
 
         group1 = VGroup(axis_group,
@@ -313,7 +317,9 @@ class StandingWave(Scene):
     gamma_f = 1  # wave number forward
     gamma_b = 1  # wave number backward
     omega_f = 1  # angular frequency forward
-    omega_b = 2  # angular frequency backward
+    omega_b = 1  # angular frequency backward
+    gamma_verify = 1
+    omega_verify = 1
 
     def forward_wave(self, x, t):
         alpha = .5
@@ -325,6 +331,9 @@ class StandingWave(Scene):
 
     def standing_wave(self, x, t):
         return self.forward_wave(x, t) + self.backward_wave(x, t)
+
+    def standing_wave_verify(self, x, t):
+        return np.cos(self.gamma_verify*x)*np.exp(-1j*self.omega_verify*t)
 
     def construct(self):
         axes = Axes(
@@ -403,12 +412,12 @@ class StandingWave(Scene):
         axes_labels2 = axes.get_axis_labels()
         self.add(axes2, axes_labels2)
 
-        standing_wave = axes2.plot(lambda x: self.standing_wave(
-            x, t.get_value()), color=PURPLE)
+        standing_wave = axes2.plot(lambda x: self.standing_wave_verify(
+            x, t.get_value()).imag, color=PURPLE)
 
         def update_standing_wave(mobj):
-            mobj.become(axes2.plot(lambda x: self.standing_wave(
-                x, t.get_value()), color=PURPLE))
+            mobj.become(axes2.plot(lambda x: self.standing_wave_verify(
+                x, t.get_value()).imag, color=PURPLE))
         standing_wave.add_updater(update_standing_wave)
 
         gamma_label_b = MathTex(f"\gamma_b = {self.gamma_b}", color=YELLOW).next_to(
@@ -435,4 +444,96 @@ class StandingWave(Scene):
         self.add(forward_wave,
                  backward_wave,
                  standing_wave)
+        self.wait(2*PI)
+
+
+class StandingWaveVerify(Scene):
+    gamma = 1
+    omega = 1
+
+    def standing_wave(self, x, t):
+        return np.cos(self.gamma*x)*np.exp(-1j*self.omega*t)
+
+    def construct(self):
+        equation = MathTex(r"u(x, t) = \cos(\gamma x) e^{-i\omega t}")
+        text_gamma = MathTex(f"\gamma = {self.gamma}").next_to(equation, RIGHT)
+        text_omega = MathTex(f"\omega = {self.omega}").next_to(
+            text_gamma, RIGHT)
+        t = ValueTracker(0)
+        t_label = MathTex("t = ").next_to(text_omega, RIGHT)
+        t_number = DecimalNumber(t.get_value(), num_decimal_places=2).next_to(
+            t_label, RIGHT)
+        t_number.add_updater(lambda m: m.set_value(t.get_value()))
+        eqgroup = VGroup(equation,
+                         text_gamma,
+                         text_omega,
+                         t_label,
+                         t_number).move_to(ORIGIN).to_edge(UP)
+
+        axes_re = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[-2*PI, 2*PI, PI],
+            y_range=[-1, 1, .5],
+            # 坐标轴长度（比例）
+            x_length=10,
+            y_length=2,
+            axis_config={"color": GREEN},
+            x_axis_config={
+                # 尺度标出数值
+                "numbers_to_include": np.arange(-2*PI, 2.01*PI, PI),
+                "decimal_number_config": {"num_decimal_places": 2},
+                # 大尺度标记
+                # "numbers_with_elongated_ticks": np.arange(-2*PI, 2*PI, PI),
+            },
+            y_axis_config={
+                "numbers_to_include": np.arange(-1, 1.01, .5),
+                # "numbers_with_elongated_ticks": np.arange(-1, 1, .5),
+            },
+            tips=False,  # 坐标箭头
+        ).next_to(eqgroup, 2*DOWN)
+        axes_im = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[-2*PI, 2*PI, PI],
+            y_range=[-1, 1, .5],
+            # 坐标轴长度（比例）
+            x_length=10,
+            y_length=2,
+            axis_config={"color": GREEN},
+            x_axis_config={
+                # 尺度标出数值
+                "numbers_to_include": np.arange(-2*PI, 2.01*PI, PI),
+                "decimal_number_config": {"num_decimal_places": 2},
+                # 大尺度标记
+                # "numbers_with_elongated_ticks": np.arange(-2*PI, 2*PI, PI),
+            },
+            y_axis_config={
+                "numbers_to_include": np.arange(-1, 1.01, .5),
+                # "numbers_with_elongated_ticks": np.arange(-1, 1, .5),
+            },
+            tips=False,  # 坐标箭头
+        ).next_to(axes_re, 2*DOWN)
+        axes_labels_re = axes_re.get_axis_labels(y_label="Re")
+        axes_labels_im = axes_im.get_axis_labels(y_label="Im")
+        self.add(axes_re, axes_labels_re, axes_im, axes_labels_im)
+        t.add_updater(lambda m, dt: m.increment_value(dt))
+        standing_wave_re = axes_re.plot(lambda x: self.standing_wave(
+            x, t.get_value()).real, color=BLUE)
+
+        def update_standing_wave_re(mobj):
+            mobj.become(axes_re.plot(lambda x: self.standing_wave(
+                x, t.get_value()).real, color=BLUE))
+        standing_wave_re.add_updater(update_standing_wave_re)
+
+        standing_wave_im = axes_im.plot(lambda x: self.standing_wave(
+            x, t.get_value()).imag, color=PURPLE)
+
+        def update_standing_wave_im(mobj):
+            mobj.become(axes_im.plot(lambda x: self.standing_wave(
+                x, t.get_value()).imag, color=PURPLE))
+        standing_wave_im.add_updater(update_standing_wave_im)
+
+        self.add(eqgroup)
+        self.add(t)
+        self.add(standing_wave_re, standing_wave_im)
+
         self.wait(2*PI)
