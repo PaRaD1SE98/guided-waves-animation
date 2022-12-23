@@ -71,35 +71,47 @@ class EulerFormula(Scene):
         x_axis_range = (-5, 5)
         x_start = np.array([x_axis_range[0], x_axis_pos_y, 0])
         x_end = np.array([x_axis_range[1], x_axis_pos_y, 0])
+        im_start = np.array([x_axis_range[0], x_axis_pos_y-1, 0])
+        im_end = np.array([x_axis_range[0], x_axis_pos_y+1, 0])
 
         y_axis_pos_x = -3.5
         y_axis_range = (4, -3)
         y_start = np.array([y_axis_pos_x, y_axis_range[0], 0])
         y_end = np.array([y_axis_pos_x, y_axis_range[1], 0])
+        re_start = np.array([y_axis_pos_x-1, y_axis_range[0], 0])
+        re_end = np.array([y_axis_pos_x+1, y_axis_range[0], 0])
 
         self.x_rate, self.y_rate = .5, .3
 
-        self.x_axis = Arrow(x_start, x_end, color=GREEN)
-        self.y_axis = Arrow(y_start, y_end, color=GREEN)
-        self.add(self.x_axis, self.y_axis)
+        self.x_axis = Arrow(x_start, x_end, stroke_width=2,
+                            max_tip_length_to_length_ratio=.02,color=GREEN)
+        self.y_axis = Arrow(y_start, y_end, stroke_width=2,
+                            max_tip_length_to_length_ratio=.025, color=GREEN)
+
+        self.re_axis = Arrow(re_start, re_end, stroke_width=2,
+                             max_tip_length_to_length_ratio=.1, color=GREEN)
+        self.re_axis.shift(.26*DOWN)
+        self.im_axis = Arrow(im_start, im_end, stroke_width=2,
+                             max_tip_length_to_length_ratio=.1, color=GREEN)
+        self.im_axis.shift(.26*RIGHT)
+
+        self.re_label = MathTex("Re").next_to(self.re_axis, .2*RIGHT).rotate(-PI/2).scale(.8)
+        self.im_label = MathTex("Im").next_to(self.im_axis, .2*UP).scale(.8)
 
         axis_label_x = MathTex(
-            r"i \sin(\theta) / \theta").next_to(self.x_axis, RIGHT)
+            r"\theta").next_to(self.x_axis, RIGHT).scale(.8)
         axis_label_y = MathTex(
-            r"\cos(\theta) / \theta").next_to(self.y_axis, DOWN)
-        self.add(axis_label_x, axis_label_y)
+            r"\theta").next_to(self.y_axis, DOWN).scale(.8)
 
         # circle
         self.circle_radius = 1
         self.origin = np.array([y_axis_pos_x, x_axis_pos_y, 0])
         self.circle = Circle(radius=self.circle_radius, color=BLUE)
         self.circle.move_to(self.origin)
-        self.add(self.circle)
 
         # orbit dot
         self.orbit_dot = Dot(radius=.05, color=YELLOW)
         self.orbit_dot.move_to(self.circle.point_from_proportion(0))
-        # self.add(self.orbit_dot)
 
         # main arrow
         self.arrow = Arrow(self.origin,
@@ -183,7 +195,7 @@ class EulerFormula(Scene):
             pos_line_start = self.orbit_dot.get_center()
             pos_line_end = np.array(
                 [self.orbit_dot.get_center()[0], x_axis_pos_y, 0])
-            return Line(pos_line_start, pos_line_end, color=PURPLE)
+            return Line(pos_line_start, pos_line_end, color=PURPLE, stroke_width=2)
 
         self.orbit_dot_to_x_axis_line = always_redraw(
             get_orbit_dot_to_x_axis_line)
@@ -193,7 +205,7 @@ class EulerFormula(Scene):
             pos_line_start = self.orbit_dot.get_center()
             pos_line_end = np.array(
                 [y_axis_pos_x, self.orbit_dot.get_center()[1], 0])
-            return Line(pos_line_start, pos_line_end, color=PURPLE)
+            return Line(pos_line_start, pos_line_end, color=MAROON, stroke_width=2)
 
         self.orbit_dot_to_y_axis_line = always_redraw(
             get_orbit_dot_to_y_axis_line)
@@ -221,7 +233,7 @@ class EulerFormula(Scene):
             pos_line_start = self.orbit_dot.get_center()
             pos_line_end = np.array(
                 [self.orbit_dot.get_center()[0], self.y_curve_dot.get_center()[1], 0])
-            return Line(pos_line_start, pos_line_end, color=PURPLE)
+            return Line(pos_line_start, pos_line_end, color=PURPLE, stroke_width=2)
 
         self.orbit_dot_to_y_curve_line = always_redraw(
             get_orbit_dot_to_y_curve_line)
@@ -231,13 +243,13 @@ class EulerFormula(Scene):
             pos_line_start = self.orbit_dot.get_center()
             pos_line_end = np.array(
                 [self.x_curve_dot.get_center()[0], self.orbit_dot.get_center()[1], 0])
-            return Line(pos_line_start, pos_line_end, color=MAROON)
+            return Line(pos_line_start, pos_line_end, color=MAROON, stroke_width=2)
 
         self.orbit_dot_to_x_curve_line = always_redraw(
             get_orbit_dot_to_x_curve_line)
 
         self.equation = MathTex(
-            r"e^{i \theta} = \cos(\theta) + i \sin(\theta)").move_to([0, 0, 0])
+            r"e^{i \theta} = \cos(\theta) + i \sin(\theta)").move_to([0, 0, 0]).shift(RIGHT)
 
         # ticks
         x_labels = [
@@ -249,40 +261,51 @@ class EulerFormula(Scene):
             MathTex("3 \pi"), MathTex("4 \pi"), MathTex("5 \pi")
         ]
 
+        x_label_group = VGroup()
         for i, label in enumerate(x_labels):
-            label.move_to(self.origin).shift(1.25*UP)
+            label.move_to(self.origin).shift(.25*DOWN)
             label.shift(self.x_rate*PI * (i+1) * RIGHT)
-            self.add(label)
-
+            x_label_group.add(label)
+        y_label_group = VGroup()
         for i, label in enumerate(y_labels):
-            label.move_to(self.origin).shift(1.25*LEFT)
+            label.move_to(self.origin).shift(.25*LEFT).rotate(-PI/2)
             label.shift(self.y_rate*PI * (i+1) * DOWN)
-            self.add(label)
+            y_label_group.add(label)
 
         # theta value
-        self.theta_label = MathTex(r"\theta = ").next_to(self.equation, DOWN)
-        self.add(self.theta_label)
+        self.theta_label = MathTex(r"\theta = ").next_to(self.equation, DOWN, aligned_edge=LEFT)
 
         def get_theta():
             return DecimalNumber(self.t, num_decimal_places=2).next_to(self.theta_label, RIGHT)
 
         self.theta = always_redraw(get_theta)
 
-        self.add(self.orbit_dot)
-        self.add(self.arrow)
-        self.add(self.x_curve_dot)
-        self.add(self.x_curve_line)
-        self.add(self.y_curve_dot)
-        self.add(self.y_curve_line)
-        # self.add(self.orbit_dot_to_x_axis_line)
-        # self.add(self.orbit_dot_to_y_axis_line)
-        self.add(self.origin_to_x_axis_arrow)
-        self.add(self.origin_to_y_axis_arrow)
-        self.add(self.orbit_dot_to_y_curve_line)
-        self.add(self.orbit_dot_to_x_curve_line)
-        self.add(self.equation)
-        self.add(self.theta)
+        axis_group = VGroup(self.x_axis, self.y_axis, self.im_axis, self.re_axis)
+        axis_label_group = VGroup(axis_label_x, axis_label_y, self.re_label, self.im_label)
+        axis_value_group = VGroup(x_label_group, y_label_group)
 
+        group1 = VGroup(axis_group,
+                        axis_label_group,
+                        axis_value_group,
+                        self.circle)
+
+        group2 = VGroup(self.orbit_dot,
+                        self.arrow,
+                        self.x_curve_dot,
+                        self.x_curve_line,
+                        self.y_curve_dot,
+                        self.y_curve_line)
+        group3 = VGroup(self.orbit_dot_to_x_axis_line,
+                        self.orbit_dot_to_y_axis_line,
+                        self.origin_to_x_axis_arrow,
+                        self.origin_to_y_axis_arrow,
+                        self.orbit_dot_to_y_curve_line,
+                        self.orbit_dot_to_x_curve_line,
+                        self.equation,
+                        self.theta_label,
+                        self.theta)
+        group = VGroup(group1, group2, group3)
+        self.add(group)
         self.wait(2*PI * 2.5)
 
 
