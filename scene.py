@@ -6,8 +6,10 @@ from manim import *
 
 
 class WavePropInBar(Scene):
-    def func(self, x, c, t):
-        X = x - c*t
+    c = 1
+
+    def func(self, x, t):
+        X = x - self.c*t
         # bump function
         if X <= -1:
             return 0
@@ -38,14 +40,13 @@ class WavePropInBar(Scene):
             tips=False,  # 坐标箭头
         )
         axes_labels = axes.get_axis_labels()
-        c = 1
         # 设置一个变量t，用于控制动画
         t = ValueTracker(0)
 
         sin_graph = axes.plot(lambda x: self.func(
-            x, c, t.get_value()), color=BLUE)
+            x, t.get_value()), color=BLUE)
         sin_graph.add_updater(lambda mobj: mobj.become(
-            axes.plot(lambda x: self.func(x, c, t.get_value()), color=BLUE)))
+            axes.plot(lambda x: self.func(x, t.get_value()), color=BLUE)))
         label = Tex("t = ").next_to(axes, UP)
         t_number = DecimalNumber(t.get_value(), num_decimal_places=2)
         t_number.add_updater(lambda mobj: mobj.set_value(
@@ -229,7 +230,7 @@ class EulerFormula(Scene):
 
         self.equation = MathTex(
             r"e^{i \theta} = \cos(\theta) + i \sin(\theta)").move_to([0, 0, 0])
-        
+
         # ticks
         x_labels = [
             MathTex("\pi"), MathTex("2 \pi"),
@@ -249,7 +250,7 @@ class EulerFormula(Scene):
             label.move_to(self.origin).shift(1.25*LEFT)
             label.shift(self.y_rate*PI * (i+1) * DOWN)
             self.add(label)
-        
+
         # theta value
         self.theta_label = MathTex(r"\theta = ").next_to(self.equation, DOWN)
         self.add(self.theta_label)
@@ -275,3 +276,132 @@ class EulerFormula(Scene):
         self.add(self.theta)
 
         self.wait(2*PI * 2.5)
+
+
+class StandingWave(Scene):
+    gamma_f = 1  # wave number forward
+    gamma_b = 1  # wave number backward
+    omega_f = 1  # angular frequency forward
+    omega_b = 2  # angular frequency backward
+
+    def forward_wave(self, x, t):
+        alpha = .5
+        return alpha * np.sin(self.gamma_f*x - self.omega_f*t)
+
+    def backward_wave(self, x, t):
+        alpha = .5
+        return alpha * np.sin(self.gamma_b*x + self.omega_b*t)
+
+    def standing_wave(self, x, t):
+        return self.forward_wave(x, t) + self.backward_wave(x, t)
+
+    def construct(self):
+        axes = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[-2*PI, 2*PI, PI],
+            y_range=[-1, 1, .5],
+            # 坐标轴长度（比例）
+            x_length=10,
+            y_length=2,
+            axis_config={"color": GREEN},
+            x_axis_config={
+                # 尺度标出数值
+                "numbers_to_include": np.arange(-2*PI, 2.01*PI, PI),
+                "decimal_number_config": {"num_decimal_places": 2},
+                # 大尺度标记
+                # "numbers_with_elongated_ticks": np.arange(-2*PI, 2*PI, PI),
+            },
+            y_axis_config={
+                "numbers_to_include": np.arange(-1, 1.01, .5),
+                # "numbers_with_elongated_ticks": np.arange(-1, 1, .5),
+            },
+            tips=False,  # 坐标箭头
+        ).shift(1.5*UP)
+        axes_labels = axes.get_axis_labels()
+
+        equation_forward = MathTex(r"\sin(\gamma_f x - \omega_f t)", color=BLUE).next_to(
+            axes, UP).shift(3*RIGHT)
+        equation_backward = MathTex(r"\sin(\gamma_b x + \omega_b t)", color=YELLOW).next_to(
+            axes, UP).shift(3*LEFT)
+
+        self.add(axes, axes_labels, equation_backward, equation_forward)
+
+        t = ValueTracker(0)
+
+        def update_t(mob, dt):
+            t.increment_value(dt)
+        t.add_updater(update_t)
+
+        forward_wave = axes.plot(lambda x: self.forward_wave(
+            x, t.get_value()), color=BLUE)
+
+        def update_forward_wave(mobj):
+            mobj.become(axes.plot(lambda x: self.forward_wave(
+                x, t.get_value()), color=BLUE))
+        forward_wave.add_updater(update_forward_wave)
+
+        backward_wave = axes.plot(lambda x: self.backward_wave(
+            x, t.get_value()), color=YELLOW)
+
+        def update_backward_wave(mobj):
+            mobj.become(axes.plot(lambda x: self.backward_wave(
+                x, t.get_value()), color=YELLOW))
+        backward_wave.add_updater(update_backward_wave)
+
+        axes2 = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[-2*PI, 2*PI, PI],
+            y_range=[-1, 1, .5],
+            # 坐标轴长度（比例）
+            x_length=10,
+            y_length=2,
+            axis_config={"color": GREEN},
+            x_axis_config={
+                # 尺度标出数值
+                "numbers_to_include": np.arange(-2*PI, 2.01*PI, PI),
+                "decimal_number_config": {"num_decimal_places": 2},
+                # 大尺度标记
+                # "numbers_with_elongated_ticks": np.arange(-2*PI, 2*PI, PI),
+            },
+            y_axis_config={
+                "numbers_to_include": np.arange(-1, 1.01, .5),
+                # "numbers_with_elongated_ticks": np.arange(-1, 1, .5),
+            },
+            tips=False,  # 坐标箭头
+        ).shift(1.5*DOWN)
+        axes_labels2 = axes.get_axis_labels()
+        self.add(axes2, axes_labels2)
+
+        standing_wave = axes2.plot(lambda x: self.standing_wave(
+            x, t.get_value()), color=PURPLE)
+
+        def update_standing_wave(mobj):
+            mobj.become(axes2.plot(lambda x: self.standing_wave(
+                x, t.get_value()), color=PURPLE))
+        standing_wave.add_updater(update_standing_wave)
+
+        gamma_label_b = MathTex(f"\gamma_b = {self.gamma_b}", color=YELLOW).next_to(
+            axes, DOWN).shift(3.5*LEFT)
+        omega_label_b = MathTex(f"\omega_b = {self.omega_b}", color=YELLOW).next_to(
+            gamma_label_b, RIGHT)
+        gamma_label_f = MathTex(f"\gamma_f = {self.gamma_f}", color=BLUE).next_to(
+            omega_label_b, RIGHT)
+        omega_label_f = MathTex(f"\omega_f = {self.omega_f}", color=BLUE).next_to(
+            gamma_label_f, RIGHT)
+
+        t_label = MathTex("t = ").next_to(omega_label_f, RIGHT)
+        t_number = DecimalNumber(t.get_value(), num_decimal_places=2).next_to(
+            t_label, RIGHT)
+        t_number.add_updater(lambda m: m.set_value(t.get_value()))
+
+        self.add(t,
+                 gamma_label_f,
+                 gamma_label_b,
+                 omega_label_f,
+                 omega_label_b,
+                 t_label,
+                 t_number)
+        self.add(forward_wave,
+                 backward_wave,
+                 standing_wave)
+        self.wait(2*PI)
