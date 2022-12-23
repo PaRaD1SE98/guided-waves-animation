@@ -40,6 +40,7 @@ class WavePropInBar(Scene):
             tips=False,  # 坐标箭头
         )
         axes_labels = axes.get_axis_labels()
+
         # 设置一个变量t，用于控制动画
         t = ValueTracker(0)
 
@@ -47,12 +48,19 @@ class WavePropInBar(Scene):
             x, t.get_value()), color=BLUE)
         sin_graph.add_updater(lambda mobj: mobj.become(
             axes.plot(lambda x: self.func(x, t.get_value()), color=BLUE)))
-        label = Tex("t = ").next_to(axes, UP)
+        # equations = MathTex(
+        #     r"\frac{\partial^2 u}{\partial t^2} = c^2 \frac{\partial^2 u}{\partial x^2}").next_to(label, UP)
+        equations = MathTex(r"y = f(x - ct)")
+        c_label = MathTex(f"c = {self.c}").next_to(equations, RIGHT)
+        t_label = MathTex("t = ").next_to(c_label, RIGHT)
         t_number = DecimalNumber(t.get_value(), num_decimal_places=2)
         t_number.add_updater(lambda mobj: mobj.set_value(
-            t.get_value()).next_to(label, RIGHT))
-        plot = VGroup(axes, sin_graph, t_number, axes_labels, label)
-        self.add(plot)
+            t.get_value()).next_to(t_label, RIGHT))
+        text_group = VGroup(equations, c_label, t_label, t_number).next_to(
+            axes, UP)
+        plot = VGroup(axes, sin_graph, t_number,
+                      axes_labels, t_label, c_label, equations)
+        self.add(plot, text_group)
         self.play(t.animate.set_value(10), rate_func=linear)
 
 
