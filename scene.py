@@ -550,12 +550,12 @@ class PowerAndEnergy(Scene):
 
     def theta(self, x, t):
         """The single variable
-        
+
         Toggle the sign of the 't' term to change the direction of the wave
         """
         return x - self.c*t
 
-    def f(self, x, t):
+    def u(self, x, t):
         """Propagating wave function (any)
 
         Note: Need to use sympy functions for derivatives
@@ -565,29 +565,30 @@ class PowerAndEnergy(Scene):
     def construct_derivatives(self):
         """Construct derivatives of f(x, t)"""
         X, T = sympy.symbols('x t')
-        _df_dx = sympy.diff(self.f(X, T), X)
-        self._df_dx_func = sympy.lambdify((X, T), _df_dx)
-        _df_dt = sympy.diff(self.f(X, T), T)
-        self._df_dt_func = sympy.lambdify((X, T), _df_dt)
+        _du_dx = sympy.diff(self.u(X, T), X)
+        self._du_dx_func = sympy.lambdify((X, T), _du_dx)
+        _du_dt = sympy.diff(self.u(X, T), T)
+        self._du_dt_func = sympy.lambdify((X, T), _du_dt)
 
-    def df_dx(self, x, t):
-        """Strain (df/dx)
-        
+    def du_dx(self, x, t):
+        """Strain (du/dx)
+
         Note:
             (eq.4, P.217)
             When a particle has a stable valocity, the strain is zero.
             Only when the particle volocity is changing, (i.e. the 
             particle has an acceleration), then the strain is non-zero.
         """
-        return self._df_dx_func(x, t)
+        return self._du_dx_func(x, t)
 
-    def df_dt(self, x, t):
-        """Particle velocity (df/dt)
+    def du_dt(self, x, t):
+        """Particle velocity (du/dt)
+
         Note:
             df_dt should be = -c*df_dx for a forward wave (eq.38, P.223)
             the sign is inverted for a backward wave
         """
-        return self._df_dt_func(x, t)
+        return self._du_dt_func(x, t)
 
     def k(self, x, t):
         """Kinetic energy (eq.73, P.229)
@@ -595,7 +596,7 @@ class PowerAndEnergy(Scene):
         Note:
             k should be = v
         """
-        return 1/2*self.m*self.df_dt(x, t)**2
+        return 1/2*self.m*self.du_dt(x, t)**2
 
     def v(self, x, t):
         """Elastic energy (eq.74, P.229)
@@ -603,7 +604,7 @@ class PowerAndEnergy(Scene):
         Note:
             v should be = k
         """
-        return 1/2*self.E*self.A*self.df_dx(x, t)**2
+        return 1/2*self.E*self.A*self.du_dx(x, t)**2
 
     def e(self, x, t):
         """Total energy (eq.80, P.230)"""
@@ -611,7 +612,7 @@ class PowerAndEnergy(Scene):
 
     def P(self, x, t):
         """Power (eq.81, P.230)"""
-        return -self.m*self.c**2*self.df_dx(x, t)*self.df_dt(x, t)
+        return -self.m*self.c**2*self.du_dx(x, t)*self.du_dt(x, t)
 
     def construct(self):
         axes = Axes(
@@ -663,30 +664,30 @@ class PowerAndEnergy(Scene):
         t.add_updater(lambda m, dt: m.increment_value(dt))
 
         # Propagating wave
-        f_plot = axes.plot(lambda x: self.f(x, 0), color=WHITE)
+        f_plot = axes.plot(lambda x: self.u(x, 0), color=WHITE)
 
         def update_f_plot(mobj):
-            mobj.become(axes.plot(lambda x: self.f(
+            mobj.become(axes.plot(lambda x: self.u(
                 x, t.get_value()), color=WHITE))
         f_plot.add_updater(update_f_plot)
         label_f = MathTex("u", color=WHITE)
         verbose_f = Tex("Particle Displacement", color=WHITE)
 
         # df/dx
-        dfdx_plot = axes.plot(lambda x: self.df_dx(x, 0), color=BLUE)
+        dfdx_plot = axes.plot(lambda x: self.du_dx(x, 0), color=BLUE)
 
         def update_dfdx_plot(mobj):
-            mobj.become(axes.plot(lambda x: self.df_dx(
+            mobj.become(axes.plot(lambda x: self.du_dx(
                 x, t.get_value()), color=BLUE))
         dfdx_plot.add_updater(update_dfdx_plot)
         label_dfdx = MathTex(r"u\prime", color=BLUE)
         verbose_dfdx = Tex("Strain", color=BLUE)
 
         # df/dt
-        dfdt_plot = axes2.plot(lambda x: self.df_dt(x, 0), color=GREEN)
+        dfdt_plot = axes2.plot(lambda x: self.du_dt(x, 0), color=GREEN)
 
         def update_dfdt_plot(mobj):
-            mobj.become(axes2.plot(lambda x: self.df_dt(
+            mobj.become(axes2.plot(lambda x: self.du_dt(
                 x, t.get_value()), color=GREEN))
         dfdt_plot.add_updater(update_dfdt_plot)
         label_dfdt = MathTex(r"\dot{u}", color=GREEN)
@@ -771,4 +772,179 @@ class PowerAndEnergy(Scene):
 
         self.add(function_labels)
         self.add(verbose_labels)
+        self.wait(2*PI)
+
+
+class InterfaceCondition(Scene):
+    """
+    omega is the same across the interface
+    u_i and u_r has the same gamma (gamma1)
+    u_t has gamma2
+    """
+    rho1 = 1  # density (assumed constant)
+    rho2 = 1  # density (assumed constant)
+    E1 = 1  # elastic modulus (assumed constant)
+    E2 = 1  # elastic modulus (assumed constant)
+    A1 = 1  # cross section area (assumed constant)
+    A2 = 1  # cross section area (assumed constant)
+    omega = 1  # angular frequency (assumed constant) (eq.50, P.225)
+    m1 = rho1*A1  # mass of the infinitesimal element dx (above eq.10, P.218)
+    m2 = rho2*A2  # mass of the infinitesimal element dx (above eq.10, P.218)
+    c1 = (E1/rho1)**(1/2)  # wave speed (eq.10, P.218)
+    c2 = (E2/rho2)**(1/2)  # wave speed (eq.10, P.218)
+    gamma1 = omega / c1  # wave number (eq.53, P.225)
+    gamma2 = omega / c2  # wave number (eq.53, P.225)
+
+    def theta_f(self, x, t):
+        """The single variable for forward wave"""
+        return x - self.c1*t
+
+    def theta_r(self, x, t):
+        """The single variable for backward wave"""
+        return x + self.c1*t
+
+    def u_i(self, x, t):
+        """Incident wave
+
+        Note: Can use cos() for short or use e^i*theta
+            to only retain the real part
+        """
+        return sympy.cos(self.gamma1*self.theta_f(x, t))
+
+    def u_r(self, x, t):
+        """Reflected wave"""
+        Z1 = self.rho1*self.c1
+        Z2 = self.rho2*self.c2
+        A1 = self.A1
+        A2 = self.A2
+        # Note: this is defined by the book (eq. 113, P. 234)
+        _u_r = sympy.cos(self.gamma1*self.theta_r(x, t))
+        return ((Z1*A1-Z2*A2)/(Z1*A1+Z2*A2))*_u_r
+
+    def u_t(self, x, t):
+        """Transmitted wave"""
+        Z1 = self.rho1*self.c1
+        Z2 = self.rho2*self.c2
+        A1 = self.A1
+        A2 = self.A2
+        return ((2*Z1*A1)/(Z1*A1+Z2*A2))*self.u_i(x, t)
+
+    def u1(self, x, t):
+        """Total wave in material 1"""
+        return self.u_i(x, t) + self.u_r(x, t)
+
+    def u2(self, x, t):
+        """Total wave in material 2"""
+        return self.u_t(x, t)
+
+    def construct(self):
+        axes = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[-2*PI, 2*PI, PI],
+            y_range=[-1.5, 1.5, .5],
+            # 坐标轴长度（比例）
+            x_length=10,
+            y_length=2,
+            axis_config={"color": GREEN},
+            x_axis_config={
+                # 尺度标出数值
+                "numbers_to_include": np.arange(-2*PI, 2.01*PI, PI),
+                "decimal_number_config": {"num_decimal_places": 2},
+                # 大尺度标记
+                # "numbers_with_elongated_ticks": np.arange(-2*PI, 2*PI, PI),
+            },
+            y_axis_config={
+                "numbers_to_include": np.arange(-1, 1.01, .5),
+                # "numbers_with_elongated_ticks": np.arange(-1, 1, .5),
+            },
+            tips=False,  # 坐标箭头
+        ).to_edge(UP)
+        axes_labels = axes.get_axis_labels(y_label="")
+        axes2 = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[-2*PI, 2*PI, PI],
+            y_range=[-1.5, 1.5, .5],
+            # 坐标轴长度（比例）
+            x_length=10,
+            y_length=2,
+            axis_config={"color": GREEN},
+            x_axis_config={
+                # 尺度标出数值
+                "numbers_to_include": np.arange(-2*PI, 2.01*PI, PI),
+                "decimal_number_config": {"num_decimal_places": 2},
+                # 大尺度标记
+                # "numbers_with_elongated_ticks": np.arange(-2*PI, 2*PI, PI),
+            },
+            y_axis_config={
+                "numbers_to_include": np.arange(-1, 1.01, .5),
+                # "numbers_with_elongated_ticks": np.arange(-1, 1, .5),
+            },
+            tips=False,  # 坐标箭头
+        ).next_to(axes, DOWN)
+        axes_labels2 = axes2.get_axis_labels(y_label="")
+
+
+        t = ValueTracker(0)
+        t.add_updater(lambda m, dt: m.increment_value(dt))
+        step_plot = 0.2
+        ui = axes.plot(lambda x: self.u_i(x, 0),
+                       color=BLUE, x_range=[-2*PI, 0, step_plot])
+
+        def update_ui(mobj):
+            mobj.become(axes.plot(lambda x: self.u_i(
+                x, t.get_value()), color=BLUE, x_range=[-2*PI, 0, step_plot]))
+        ui.add_updater(update_ui)
+
+        ur = axes.plot(lambda x: self.u_r(x, 0),
+                       color=RED, x_range=[-2*PI, 0, step_plot])
+
+        def update_ur(mobj):
+            mobj.become(axes.plot(lambda x: self.u_r(
+                x, t.get_value()), color=RED, x_range=[-2*PI, 0, step_plot]))
+        ur.add_updater(update_ur)
+
+        ut = axes.plot(lambda x: self.u_t(x, 0), color=GREEN,
+                       x_range=[0, 2*PI, step_plot])
+
+        def update_ut(mobj):
+            mobj.become(axes.plot(lambda x: self.u_t(
+                x, t.get_value()), color=GREEN, x_range=[0, 2*PI, step_plot]))
+        ut.add_updater(update_ut)
+
+        u1 = axes2.plot(lambda x: self.u1(x, 0),
+                       color=ORANGE, x_range=[-2*PI, 0, step_plot])
+
+        def update_u1(mobj):
+            mobj.become(axes2.plot(lambda x: self.u1(
+                x, t.get_value()), color=ORANGE, x_range=[-2*PI, 0, step_plot]))
+        u1.add_updater(update_u1)
+
+        u2 = axes2.plot(lambda x: self.u2(x, 0), color=PURPLE,
+                       x_range=[0, 2*PI, step_plot])
+
+        def update_u2(mobj):
+            mobj.become(axes2.plot(lambda x: self.u2(
+                x, t.get_value()), color=PURPLE, x_range=[0, 2*PI, step_plot]))
+        u2.add_updater(update_u2)
+
+        rho1 = MathTex(r"\rho_1" + f"={self.rho1}", color=ORANGE)
+        rho2 = MathTex(r"\rho_2" + f"={self.rho2}", color=PURPLE).next_to(rho1, DOWN)
+        rho = VGroup(rho1, rho2).next_to(axes2, DOWN)
+
+        E1 = MathTex(r"E_1" + f"={self.E1}", color=ORANGE)
+        E2 = MathTex(r"E_2" + f"={self.E2}", color=PURPLE).next_to(E1, DOWN)
+        E = VGroup(E1, E2).next_to(rho, RIGHT)
+
+        A1 = MathTex(r"A_1" + f"={self.A1}", color=ORANGE)
+        A2 = MathTex(r"A_2" + f"={self.A2}", color=PURPLE).next_to(A1, DOWN)
+        A = VGroup(A1, A2).next_to(E, RIGHT)
+
+        texts = VGroup(rho, E, A).scale(0.8).next_to(axes2, DOWN)
+
+        axis_group = VGroup(axes, axes2, axes_labels, axes_labels2)
+        u_group = VGroup(ui, ur, ut, u1, u2)
+        all = VGroup(axis_group, u_group, texts).move_to(ORIGIN)
+
+        self.add(t)
+        self.add(all)
         self.wait(2*PI)
