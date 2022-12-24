@@ -319,8 +319,6 @@ class StandingWave(Scene):
     gamma_b = 1  # wave number backward
     omega_f = 1  # angular frequency forward
     omega_b = 1  # angular frequency backward
-    gamma_verify = 1
-    omega_verify = 1
 
     def forward_wave(self, x, t):
         alpha = .5
@@ -332,9 +330,6 @@ class StandingWave(Scene):
 
     def standing_wave(self, x, t):
         return self.forward_wave(x, t) + self.backward_wave(x, t)
-
-    def standing_wave_verify(self, x, t):
-        return np.cos(self.gamma_verify*x)*np.exp(-1j*self.omega_verify*t)
 
     def construct(self):
         axes = Axes(
@@ -554,12 +549,15 @@ class PowerAndEnergy(Scene):
         self.construct_derivatives()
 
     def theta(self, x, t):
-        """The single variable"""
-        return x + self.c*t
+        """The single variable
+        
+        Toggle the sign of the 't' term to change the direction of the wave
+        """
+        return x - self.c*t
 
     def f(self, x, t):
         """Propagating wave function (any)
-        
+
         Note: Need to use sympy functions for derivatives
         """
         return sympy.cos(self.gamma*self.theta(x, t))
@@ -573,11 +571,19 @@ class PowerAndEnergy(Scene):
         self._df_dt_func = sympy.lambdify((X, T), _df_dt)
 
     def df_dx(self, x, t):
-        """Propagating velocity df/dx"""
+        """Strain (df/dx)
+        
+        Note:
+            (eq.4, P.217)
+        """
         return self._df_dx_func(x, t)
 
     def df_dt(self, x, t):
-        """Propagating velocity df/dt"""
+        """Particle velocity (df/dt)
+        Note:
+            df_dt should be = -c*df_dx for a forward wave (eq.38, P.223)
+            the sign is inverted for a backward wave
+        """
         return self._df_dt_func(x, t)
 
     def k(self, x, t):
@@ -625,7 +631,7 @@ class PowerAndEnergy(Scene):
                 # "numbers_with_elongated_ticks": np.arange(-1, 1, .5),
             },
             tips=False,  # 坐标箭头
-        ).shift(2*UP)
+        ).to_edge(UP)
         axes_labels = axes.get_axis_labels(y_label="")
         axes2 = Axes(
             # 坐标轴数值范围和步长
@@ -647,7 +653,7 @@ class PowerAndEnergy(Scene):
                 # "numbers_with_elongated_ticks": np.arange(-1, 1, .5),
             },
             tips=False,  # 坐标箭头
-        ).next_to(axes, DOWN)
+        ).next_to(axes, 3*DOWN)
         axes_labels2 = axes2.get_axis_labels(y_label="")
 
         t = ValueTracker(0)
@@ -672,10 +678,10 @@ class PowerAndEnergy(Scene):
         label_dfdx = MathTex(r"u\prime", color=BLUE)
 
         # df/dt
-        dfdt_plot = axes.plot(lambda x: self.df_dt(x, 0), color=GREEN)
+        dfdt_plot = axes2.plot(lambda x: self.df_dt(x, 0), color=GREEN)
 
         def update_dfdt_plot(mobj):
-            mobj.become(axes.plot(lambda x: self.df_dt(
+            mobj.become(axes2.plot(lambda x: self.df_dt(
                 x, t.get_value()), color=GREEN))
         dfdt_plot.add_updater(update_dfdt_plot)
         label_dfdt = MathTex(r"\dot{u}", color=GREEN)
