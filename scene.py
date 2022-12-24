@@ -2,6 +2,7 @@
 # run: manim -pqh scene.py <ClassName>
 import math
 
+import sympy
 from manim import *
 
 
@@ -536,4 +537,206 @@ class StandingWaveVerify(Scene):
         self.add(t)
         self.add(standing_wave_re, standing_wave_im)
 
+        self.wait(2*PI)
+
+
+class PowerAndEnergy(Scene):
+    rho = 1  # density (assumed constant)
+    E = 1  # elastic modulus (assumed constant)
+    A = 1  # cross section area (assumed constant)
+    omega = 1  # angular frequency (assumed constant) (eq.50, P.225)
+    m = rho*A  # mass of the infinitesimal element dx (above eq.10, P.218)
+    c = (E/rho)**(1/2)  # wave speed (eq.10, P.218)
+    gamma = omega / c  # wave number (eq.53, P.225)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.construct_derivatives()
+
+    def theta(self, x, t):
+        """The single variable"""
+        return x + self.c*t
+
+    def f(self, x, t):
+        """Propagating wave function (any)
+        
+        Note: Need to use sympy functions for derivatives
+        """
+        return sympy.cos(self.gamma*self.theta(x, t))
+
+    def construct_derivatives(self):
+        """Construct derivatives of f(x, t)"""
+        X, T = sympy.symbols('x t')
+        _df_dx = sympy.diff(self.f(X, T), X)
+        self._df_dx_func = sympy.lambdify((X, T), _df_dx)
+        _df_dt = sympy.diff(self.f(X, T), T)
+        self._df_dt_func = sympy.lambdify((X, T), _df_dt)
+
+    def df_dx(self, x, t):
+        """Propagating velocity df/dx"""
+        return self._df_dx_func(x, t)
+
+    def df_dt(self, x, t):
+        """Propagating velocity df/dt"""
+        return self._df_dt_func(x, t)
+
+    def k(self, x, t):
+        """Kinetic energy (eq.73, P.229)
+
+        Note:
+            k should be = v
+        """
+        return 1/2*self.m*self.df_dt(x, t)**2
+
+    def v(self, x, t):
+        """Elastic energy (eq.74, P.229)
+
+        Note:
+            v should be = k
+        """
+        return 1/2*self.E*self.A*self.df_dx(x, t)**2
+
+    def e(self, x, t):
+        """Total energy (eq.80, P.230)"""
+        return self.k(x, t) + self.v(x, t)
+
+    def P(self, x, t):
+        """Power (eq.81, P.230)"""
+        return -self.m*self.c**2*self.df_dx(x, t)*self.df_dt(x, t)
+
+    def construct(self):
+        axes = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[-2*PI, 2*PI, PI],
+            y_range=[-1, 1, .5],
+            # 坐标轴长度（比例）
+            x_length=10,
+            y_length=2,
+            axis_config={"color": GREEN},
+            x_axis_config={
+                # 尺度标出数值
+                "numbers_to_include": np.arange(-2*PI, 2.01*PI, PI),
+                "decimal_number_config": {"num_decimal_places": 2},
+                # 大尺度标记
+                # "numbers_with_elongated_ticks": np.arange(-2*PI, 2*PI, PI),
+            },
+            y_axis_config={
+                "numbers_to_include": np.arange(-1, 1.01, .5),
+                # "numbers_with_elongated_ticks": np.arange(-1, 1, .5),
+            },
+            tips=False,  # 坐标箭头
+        ).shift(2*UP)
+        axes_labels = axes.get_axis_labels(y_label="")
+        axes2 = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[-2*PI, 2*PI, PI],
+            y_range=[-1, 1, .5],
+            # 坐标轴长度（比例）
+            x_length=10,
+            y_length=2,
+            axis_config={"color": GREEN},
+            x_axis_config={
+                # 尺度标出数值
+                "numbers_to_include": np.arange(-2*PI, 2.01*PI, PI),
+                "decimal_number_config": {"num_decimal_places": 2},
+                # 大尺度标记
+                # "numbers_with_elongated_ticks": np.arange(-2*PI, 2*PI, PI),
+            },
+            y_axis_config={
+                "numbers_to_include": np.arange(-1, 1.01, .5),
+                # "numbers_with_elongated_ticks": np.arange(-1, 1, .5),
+            },
+            tips=False,  # 坐标箭头
+        ).next_to(axes, DOWN)
+        axes_labels2 = axes2.get_axis_labels(y_label="")
+
+        t = ValueTracker(0)
+        t.add_updater(lambda m, dt: m.increment_value(dt))
+
+        # Propagating wave
+        f_plot = axes.plot(lambda x: self.f(x, 0), color=WHITE)
+
+        def update_f_plot(mobj):
+            mobj.become(axes.plot(lambda x: self.f(
+                x, t.get_value()), color=WHITE))
+        f_plot.add_updater(update_f_plot)
+        label_f = MathTex("u", color=WHITE)
+
+        # df/dx
+        dfdx_plot = axes.plot(lambda x: self.df_dx(x, 0), color=BLUE)
+
+        def update_dfdx_plot(mobj):
+            mobj.become(axes.plot(lambda x: self.df_dx(
+                x, t.get_value()), color=BLUE))
+        dfdx_plot.add_updater(update_dfdx_plot)
+        label_dfdx = MathTex(r"u\prime", color=BLUE)
+
+        # df/dt
+        dfdt_plot = axes.plot(lambda x: self.df_dt(x, 0), color=GREEN)
+
+        def update_dfdt_plot(mobj):
+            mobj.become(axes.plot(lambda x: self.df_dt(
+                x, t.get_value()), color=GREEN))
+        dfdt_plot.add_updater(update_dfdt_plot)
+        label_dfdt = MathTex(r"\dot{u}", color=GREEN)
+
+        # Kinetic energy
+        k_plot = axes.plot(lambda x: self.k(x, 0), color=RED)
+
+        def update_k_plot(mobj):
+            mobj.become(axes.plot(lambda x: self.k(
+                x, t.get_value()), color=RED))
+        k_plot.add_updater(update_k_plot)
+        label_k = MathTex("k", color=RED)
+
+        # Elastic energy
+        v_plot = axes2.plot(lambda x: self.v(x, 0), color=PURPLE)
+
+        def update_v_plot(mobj):
+            mobj.become(axes2.plot(lambda x: self.v(
+                x, t.get_value()), color=PURPLE))
+        v_plot.add_updater(update_v_plot)
+        label_v = MathTex("v", color=PURPLE)
+
+        # Total energy
+        e_plot = axes2.plot(lambda x: self.e(x, 0), color=ORANGE)
+
+        def update_e_plot(mobj):
+            mobj.become(axes2.plot(lambda x: self.e(
+                x, t.get_value()), color=ORANGE))
+        e_plot.add_updater(update_e_plot)
+        label_e = MathTex("e", color=ORANGE)
+
+        # Power
+        P_plot = axes.plot(lambda x: self.P(x, 0), color=YELLOW)
+
+        def update_P_plot(mobj):
+            mobj.become(axes.plot(lambda x: self.P(
+                x, t.get_value()), color=YELLOW))
+        P_plot.add_updater(update_P_plot)
+        label_P = MathTex("P", color=YELLOW)
+
+        label_f.to_corner(UL)
+        label_dfdx.next_to(label_f, RIGHT)
+        label_dfdt.next_to(label_dfdx, RIGHT)
+        label_k.next_to(label_dfdt, RIGHT)
+        label_v.next_to(label_k, RIGHT)
+        label_e.next_to(label_v, RIGHT)
+        label_P.next_to(label_e, RIGHT)
+
+        function_labels = VGroup(label_f,
+                                 label_dfdx,
+                                 label_dfdt,
+                                 label_k,
+                                 label_v,
+                                 label_e,
+                                 label_P).next_to(axes2, DOWN)
+
+        self.add(axes, axes_labels)
+        self.add(axes2, axes_labels2)
+
+        self.add(t, f_plot, dfdt_plot, dfdx_plot,
+                 k_plot, v_plot, e_plot, P_plot)
+
+        self.add(function_labels)
         self.wait(2*PI)
