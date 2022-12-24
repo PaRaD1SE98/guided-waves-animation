@@ -553,7 +553,7 @@ class PowerAndEnergy(Scene):
         
         Toggle the sign of the 't' term to change the direction of the wave
         """
-        return x + self.c*t
+        return x - self.c*t
 
     def f(self, x, t):
         """Propagating wave function (any)
@@ -670,6 +670,7 @@ class PowerAndEnergy(Scene):
                 x, t.get_value()), color=WHITE))
         f_plot.add_updater(update_f_plot)
         label_f = MathTex("u", color=WHITE)
+        verbose_f = Tex("Particle Displacement", color=WHITE)
 
         # df/dx
         dfdx_plot = axes.plot(lambda x: self.df_dx(x, 0), color=BLUE)
@@ -679,6 +680,7 @@ class PowerAndEnergy(Scene):
                 x, t.get_value()), color=BLUE))
         dfdx_plot.add_updater(update_dfdx_plot)
         label_dfdx = MathTex(r"u\prime", color=BLUE)
+        verbose_dfdx = Tex("Strain", color=BLUE)
 
         # df/dt
         dfdt_plot = axes2.plot(lambda x: self.df_dt(x, 0), color=GREEN)
@@ -688,6 +690,7 @@ class PowerAndEnergy(Scene):
                 x, t.get_value()), color=GREEN))
         dfdt_plot.add_updater(update_dfdt_plot)
         label_dfdt = MathTex(r"\dot{u}", color=GREEN)
+        verbose_dfdt = Tex("Particle Velocity", color=GREEN)
 
         # Kinetic energy
         k_plot = axes.plot(lambda x: self.k(x, 0), color=RED)
@@ -697,6 +700,7 @@ class PowerAndEnergy(Scene):
                 x, t.get_value()), color=RED))
         k_plot.add_updater(update_k_plot)
         label_k = MathTex("k", color=RED)
+        verbose_k = Tex("Kinetic Energy", color=RED)
 
         # Elastic energy
         v_plot = axes2.plot(lambda x: self.v(x, 0), color=PURPLE)
@@ -706,6 +710,7 @@ class PowerAndEnergy(Scene):
                 x, t.get_value()), color=PURPLE))
         v_plot.add_updater(update_v_plot)
         label_v = MathTex("v", color=PURPLE)
+        verbose_v = Tex("Elastic Energy", color=PURPLE)
 
         # Total energy
         e_plot = axes2.plot(lambda x: self.e(x, 0), color=ORANGE)
@@ -715,6 +720,7 @@ class PowerAndEnergy(Scene):
                 x, t.get_value()), color=ORANGE))
         e_plot.add_updater(update_e_plot)
         label_e = MathTex("e", color=ORANGE)
+        verbose_e = Tex("Total Energy", color=ORANGE)
 
         # Power
         P_plot = axes.plot(lambda x: self.P(x, 0), color=YELLOW)
@@ -724,6 +730,7 @@ class PowerAndEnergy(Scene):
                 x, t.get_value()), color=YELLOW))
         P_plot.add_updater(update_P_plot)
         label_P = MathTex("P", color=YELLOW)
+        verbose_P = Tex("Power", color=YELLOW)
 
         label_f.to_corner(UL)
         label_dfdx.next_to(label_f, RIGHT)
@@ -733,6 +740,14 @@ class PowerAndEnergy(Scene):
         label_e.next_to(label_v, RIGHT)
         label_P.next_to(label_e, RIGHT)
 
+        verbose_f.to_corner(UL)
+        verbose_dfdx.next_to(verbose_f, RIGHT)
+        verbose_dfdt.next_to(verbose_dfdx, RIGHT)
+        verbose_k.next_to(verbose_dfdt, RIGHT)
+        verbose_v.next_to(verbose_k, RIGHT)
+        verbose_e.next_to(verbose_v, RIGHT)
+        verbose_P.next_to(verbose_e, RIGHT)
+
         function_labels = VGroup(label_f,
                                  label_dfdx,
                                  label_dfdt,
@@ -741,6 +756,13 @@ class PowerAndEnergy(Scene):
                                  label_e,
                                  label_P).next_to(axes2, DOWN)
 
+        verbose_labels = VGroup(verbose_f,
+                                verbose_dfdx,
+                                verbose_dfdt,
+                                verbose_k,
+                                verbose_v,
+                                verbose_e,
+                                verbose_P).next_to(function_labels, DOWN).scale(0.5)
         self.add(axes, axes_labels)
         self.add(axes2, axes_labels2)
 
@@ -748,4 +770,5 @@ class PowerAndEnergy(Scene):
                  k_plot, v_plot, e_plot, P_plot)
 
         self.add(function_labels)
+        self.add(verbose_labels)
         self.wait(2*PI)
