@@ -553,7 +553,7 @@ class PowerAndEnergy(Scene):
         
         Toggle the sign of the 't' term to change the direction of the wave
         """
-        return x - self.c*t
+        return x + self.c*t
 
     def f(self, x, t):
         """Propagating wave function (any)
@@ -575,6 +575,9 @@ class PowerAndEnergy(Scene):
         
         Note:
             (eq.4, P.217)
+            When a particle has a stable valocity, the strain is zero.
+            Only when the particle volocity is changing, (i.e. the 
+            particle has an acceleration), then the strain is non-zero.
         """
         return self._df_dx_func(x, t)
 
