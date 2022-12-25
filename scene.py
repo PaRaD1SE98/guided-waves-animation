@@ -882,9 +882,11 @@ class InterfaceCondition(Scene):
         """Reflected wave
 
         Note: (eq.128, P.236)
-            Need to use the backward wave function 
-            for the reflected wave, because the
-            u_hat_r and u_hat_t has opposite direction
+            Need to use the backward wave function f_backward(),
+            because the u_hat_r and u_hat_t has opposite 
+            propagating direction when converting to scaler.
+
+            !!!Adding a negative sign on u_i() will not work.
         """
         return ((self.Z1*self.A1-self.Z2*self.A2)
                 / (self.Z1*self.A1+self.Z2*self.A2)) * self.f_backward(x, t)
