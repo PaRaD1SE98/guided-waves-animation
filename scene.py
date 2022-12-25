@@ -848,27 +848,27 @@ class InterfaceCondition(Scene):
     Z1 = rho1*c1  # acoustic impedance (eq.46, P.224)
     Z2 = rho2*c2  # acoustic impedance (eq.46, P.224)
 
-    def theta_i(self, x, t):
+    def theta_forward(self, x, t):
         """The single variable for forward wave
 
         Note: (eq.158, P.241)
         """
         return x - self.c1*t
 
-    def theta_r(self, x, t):
+    def theta_backward(self, x, t):
         """The single variable for backward wave
 
         Note: (eq.158, P.241)
         """
         return x + self.c1*t
 
-    def f_i(self, x, t):
+    def f_forward(self, x, t):
         """The wave function"""
-        return sympy.cos(self.gamma1*self.theta_i(x, t))
+        return sympy.cos(self.gamma1*self.theta_forward(x, t))
 
-    def f_r(self, x, t):
+    def f_backward(self, x, t):
         """The wave function"""
-        return sympy.cos(self.gamma1*self.theta_r(x, t))
+        return sympy.cos(self.gamma1*self.theta_backward(x, t))
 
     def u_i(self, x, t):
         """Incident wave
@@ -876,15 +876,18 @@ class InterfaceCondition(Scene):
         Note: Can use cos() for short or use e^i*theta
             to only retain the real part
         """
-        return self.f_i(x, t)
+        return self.f_forward(x, t)
 
     def u_r(self, x, t):
         """Reflected wave
 
         Note: (eq.128, P.236)
+            Need to use the backward wave function 
+            for the reflected wave, because the
+            u_hat_r and u_hat_t has opposite direction
         """
         return ((self.Z1*self.A1-self.Z2*self.A2)
-                / (self.Z1*self.A1+self.Z2*self.A2)) * self.f_r(x, t)
+                / (self.Z1*self.A1+self.Z2*self.A2)) * self.f_backward(x, t)
 
     def u_t(self, x, t):
         """Transmitted wave
