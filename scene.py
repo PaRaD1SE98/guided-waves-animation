@@ -9,9 +9,25 @@ from manim import *
 class WavePropInBar(Scene):
     c = 1
 
-    def func(self, x, t):
-        X = x - self.c*t
+    def theta_forward(self, x, t):
+        return x - self.c*t
+
+    def theta_backward(self, x, t):
+        return x + self.c*t
+
+    def f_forward(self, x, t):
         # bump function
+        X = self.theta_forward(x, t)
+        if X <= -1:
+            return 0
+        elif -1 < X < 1:
+            return math.exp(-1/(1-X**2))
+        else:
+            return 0
+
+    def f_backward(self, x, t):
+        # bump function
+        X = self.theta_backward(x, t)
         if X <= -1:
             return 0
         elif -1 < X < 1:
@@ -20,9 +36,9 @@ class WavePropInBar(Scene):
             return 0
 
     def construct(self):
-        axes = Axes(
+        axes_forward = Axes(
             # 坐标轴数值范围和步长
-            x_range=[0, 10, 1],
+            x_range=[0, 5, 1],
             y_range=[0, .4, .1],
             # 坐标轴长度（比例）
             x_length=10,
@@ -30,39 +46,74 @@ class WavePropInBar(Scene):
             axis_config={"color": GREEN},
             x_axis_config={
                 # 尺度标出数值
-                "numbers_to_include": np.arange(-.01, 10.01, 2),
+                "numbers_to_include": np.arange(-.01, 5.01, 2),
                 # 大尺度标记
-                "numbers_with_elongated_ticks": np.arange(-.01, 10.01, 2),
+                "numbers_with_elongated_ticks": np.arange(-.01, 5.01, 2),
             },
             y_axis_config={
                 "numbers_to_include": np.arange(0, .41, .2),
                 "numbers_with_elongated_ticks": np.arange(0, .41, .2),
             },
             tips=False,  # 坐标箭头
-        )
-        axes_labels = axes.get_axis_labels()
-
+        ).to_edge(UP)
+        axes_labels_forward = axes_forward.get_axis_labels(y_label="")
+        axes_backward = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[-5, 0, 1],
+            y_range=[0, .4, .1],
+            # 坐标轴长度（比例）
+            x_length=10,
+            y_length=2,
+            axis_config={"color": GREEN},
+            x_axis_config={
+                # 尺度标出数值
+                "numbers_to_include": np.arange(-5.01, .01, 2),
+                # 大尺度标记
+                "numbers_with_elongated_ticks": np.arange(-5.01, .01, 2),
+            },
+            y_axis_config={
+                "numbers_to_include": np.arange(0, .41, .2),
+                "numbers_with_elongated_ticks": np.arange(0, .41, .2),
+            },
+            tips=False,  # 坐标箭头
+        ).next_to(axes_forward, DOWN)
+        axes_labels_backward = axes_backward.get_axis_labels(y_label="")
         # 设置一个变量t，用于控制动画
         t = ValueTracker(0)
+        t.add_updater(lambda mobj, dt: mobj.increment_value(dt))
 
-        sin_graph = axes.plot(lambda x: self.func(
+        forward_plot = axes_forward.plot(lambda x: self.f_forward(
             x, t.get_value()), color=BLUE)
-        sin_graph.add_updater(lambda mobj: mobj.become(
-            axes.plot(lambda x: self.func(x, t.get_value()), color=BLUE)))
+        forward_plot.add_updater(lambda mobj: mobj.become(
+            axes_forward.plot(lambda x: self.f_forward(x, t.get_value()), color=BLUE)))
+        backward_plot = axes_backward.plot(lambda x: self.f_backward(
+            x, t.get_value()), color=YELLOW)
+        backward_plot.add_updater(lambda mobj: mobj.become(
+            axes_backward.plot(lambda x: self.f_backward(x, t.get_value()), color=YELLOW)))
         # equations = MathTex(
         #     r"\frac{\partial^2 u}{\partial t^2} = c^2 \frac{\partial^2 u}{\partial x^2}").next_to(label, UP)
-        equations = MathTex(r"y = f(x - ct)")
-        c_label = MathTex(f"c = {self.c}").next_to(equations, RIGHT)
+        equation_f = MathTex(r"y_f = f(x - ct)",color=BLUE)
+        equation_b = MathTex(r"y_b = f(x + ct)",
+                             color=YELLOW).next_to(equation_f, RIGHT)
+        c_label = MathTex(f"c = {self.c}").next_to(equation_b, RIGHT)
         t_label = MathTex("t = ").next_to(c_label, RIGHT)
         t_number = DecimalNumber(t.get_value(), num_decimal_places=2)
         t_number.add_updater(lambda mobj: mobj.set_value(
             t.get_value()).next_to(t_label, RIGHT))
-        text_group = VGroup(equations, c_label, t_label, t_number).next_to(
-            axes, UP)
-        plot = VGroup(axes, sin_graph, t_number,
-                      axes_labels, t_label, c_label, equations)
+        text_group = VGroup(equation_f,equation_b, c_label, t_label, t_number).next_to(
+            axes_backward, DOWN)
+        plot = VGroup(axes_forward,
+                      axes_labels_forward,
+                      axes_backward,
+                      axes_labels_backward,
+                      forward_plot,
+                      backward_plot,
+                      t_number,
+                      t_label,
+                      c_label)
+        self.add(t)
         self.add(plot, text_group)
-        self.play(t.animate.set_value(10), rate_func=linear)
+        self.wait(5)
 
 
 class EulerFormula(Scene):
@@ -883,7 +934,6 @@ class InterfaceCondition(Scene):
         ).next_to(axes, DOWN)
         axes_labels2 = axes2.get_axis_labels(y_label="")
 
-
         t = ValueTracker(0)
         t.add_updater(lambda m, dt: m.increment_value(dt))
         step_plot = 0.2
@@ -912,7 +962,7 @@ class InterfaceCondition(Scene):
         ut.add_updater(update_ut)
 
         u1 = axes2.plot(lambda x: self.u1(x, 0),
-                       color=ORANGE, x_range=[-2*PI, 0, step_plot])
+                        color=ORANGE, x_range=[-2*PI, 0, step_plot])
 
         def update_u1(mobj):
             mobj.become(axes2.plot(lambda x: self.u1(
@@ -920,7 +970,7 @@ class InterfaceCondition(Scene):
         u1.add_updater(update_u1)
 
         u2 = axes2.plot(lambda x: self.u2(x, 0), color=PURPLE,
-                       x_range=[0, 2*PI, step_plot])
+                        x_range=[0, 2*PI, step_plot])
 
         def update_u2(mobj):
             mobj.become(axes2.plot(lambda x: self.u2(
@@ -928,7 +978,8 @@ class InterfaceCondition(Scene):
         u2.add_updater(update_u2)
 
         rho1 = MathTex(r"\rho_1" + f"={self.rho1}", color=ORANGE)
-        rho2 = MathTex(r"\rho_2" + f"={self.rho2}", color=PURPLE).next_to(rho1, DOWN)
+        rho2 = MathTex(r"\rho_2" + f"={self.rho2}",
+                       color=PURPLE).next_to(rho1, DOWN)
         rho = VGroup(rho1, rho2).next_to(axes2, DOWN)
 
         E1 = MathTex(r"E_1" + f"={self.E1}", color=ORANGE)
