@@ -92,7 +92,7 @@ class WavePropInBar(Scene):
             axes_backward.plot(lambda x: self.f_backward(x, t.get_value()), color=YELLOW)))
         # equations = MathTex(
         #     r"\frac{\partial^2 u}{\partial t^2} = c^2 \frac{\partial^2 u}{\partial x^2}").next_to(label, UP)
-        equation_f = MathTex(r"y_f = f(x - ct)",color=BLUE)
+        equation_f = MathTex(r"y_f = f(x - ct)", color=BLUE)
         equation_b = MathTex(r"y_b = f(x + ct)",
                              color=YELLOW).next_to(equation_f, RIGHT)
         c_label = MathTex(f"c = {self.c}").next_to(equation_b, RIGHT)
@@ -100,7 +100,7 @@ class WavePropInBar(Scene):
         t_number = DecimalNumber(t.get_value(), num_decimal_places=2)
         t_number.add_updater(lambda mobj: mobj.set_value(
             t.get_value()).next_to(t_label, RIGHT))
-        text_group = VGroup(equation_f,equation_b, c_label, t_label, t_number).next_to(
+        text_group = VGroup(equation_f, equation_b, c_label, t_label, t_number).next_to(
             axes_backward, DOWN)
         plot = VGroup(axes_forward,
                       axes_labels_forward,
@@ -845,14 +845,30 @@ class InterfaceCondition(Scene):
     c2 = (E2/rho2)**(1/2)  # wave speed (eq.10, P.218)
     gamma1 = omega / c1  # wave number (eq.53, P.225)
     gamma2 = omega / c2  # wave number (eq.53, P.225)
+    Z1 = rho1*c1  # acoustic impedance (eq.46, P.224)
+    Z2 = rho2*c2  # acoustic impedance (eq.46, P.224)
 
-    def theta_f(self, x, t):
-        """The single variable for forward wave"""
+    def theta_i(self, x, t):
+        """The single variable for forward wave
+
+        Note: (eq.158, P.241)
+        """
         return x - self.c1*t
 
     def theta_r(self, x, t):
-        """The single variable for backward wave"""
+        """The single variable for backward wave
+
+        Note: (eq.158, P.241)
+        """
         return x + self.c1*t
+
+    def f_i(self, x, t):
+        """The wave function"""
+        return sympy.cos(self.gamma1*self.theta_i(x, t))
+
+    def f_r(self, x, t):
+        """The wave function"""
+        return sympy.cos(self.gamma1*self.theta_r(x, t))
 
     def u_i(self, x, t):
         """Incident wave
@@ -860,25 +876,23 @@ class InterfaceCondition(Scene):
         Note: Can use cos() for short or use e^i*theta
             to only retain the real part
         """
-        return sympy.cos(self.gamma1*self.theta_f(x, t))
+        return self.f_i(x, t)
 
     def u_r(self, x, t):
-        """Reflected wave"""
-        Z1 = self.rho1*self.c1
-        Z2 = self.rho2*self.c2
-        A1 = self.A1
-        A2 = self.A2
-        # Note: this is defined by the book (eq. 113, P. 234)
-        _u_r = sympy.cos(self.gamma1*self.theta_r(x, t))
-        return ((Z1*A1-Z2*A2)/(Z1*A1+Z2*A2))*_u_r
+        """Reflected wave
+
+        Note: (eq.128, P.236)
+        """
+        return ((self.Z1*self.A1-self.Z2*self.A2)
+                / (self.Z1*self.A1+self.Z2*self.A2)) * self.f_r(x, t)
 
     def u_t(self, x, t):
-        """Transmitted wave"""
-        Z1 = self.rho1*self.c1
-        Z2 = self.rho2*self.c2
-        A1 = self.A1
-        A2 = self.A2
-        return ((2*Z1*A1)/(Z1*A1+Z2*A2))*self.u_i(x, t)
+        """Transmitted wave
+
+        Note: (eq.128, P.236)
+        """
+        return ((2*self.Z1*self.A1)
+                / (self.Z1*self.A1+self.Z2*self.A2))*self.u_i(x, t)
 
     def u1(self, x, t):
         """Total wave in material 1"""
