@@ -627,7 +627,7 @@ class PowerAndEnergy(Scene):
         Note:
             (eq.4, P.217)
             When a particle has a stable valocity, the strain is zero.
-            Only when the particle volocity is changing, (i.e. the 
+            Only when the particle volocity is changing, (i.e. the
             particle has an acceleration), then the strain is non-zero.
         """
         return self._du_dx_func(x, t)
@@ -883,7 +883,7 @@ class InterfaceCondition(Scene):
 
         Note: (eq.128, P.236)
             Need to use the backward wave function f_backward(),
-            because the u_hat_r and u_hat_t has opposite 
+            because the u_hat_r and u_hat_t has opposite
             propagating direction when converting to scaler.
 
             !!!Adding a negative sign on u_i() will not work.
@@ -1017,4 +1017,154 @@ class InterfaceCondition(Scene):
 
         self.add(t)
         self.add(all)
+        self.wait(2*PI)
+
+
+class FlexuralWavesInABeam(Scene):
+    rho = 1  # density (assumed constant)
+    E = 1  # elastic modulus (assumed constant)
+    omega = 1  # angular frequency (assumed constant) (eq.50, P.225)
+    h = 1  # cross section height (assumed constant) (above eq.196, P.246)
+    b = 1  # cross section width (assumed constant) (above eq.196, P.246)
+    I = 1/12*h*b**3  # moment of inertia (eq.196, P.246)
+    A = h*b  # cross section area
+    m = rho*A  # mass of the infinitesimal element dx (above eq.10, P.218)
+    # c = (E/rho)**(1/2)  # wave speed (eq.10, P.218)
+    # gamma = omega / c  # wave number (eq.53, P.225)
+    a = ((E*h**2)/(12*rho))**(1/4)  # characteristic length (eq.196, P.246)
+    gamma = omega**(1/2) / a  # wave number (eq.196, P.246)
+    c_F = omega / gamma  # flexural wave speed (eq.209, P.247)
+
+    def w(self, x, t):
+        A1 = 1
+        A2 = 1
+        propagating = A1*np.exp(1j*(self.gamma*x-self.omega*t))
+        evanescent = A2*np.exp(-self.gamma*x)*np.exp(-1j*self.omega*t)
+        return propagating+evanescent
+
+    def u(self, x, z, t):
+        return -1j*self.gamma*z*self.w(x, t)
+
+    def construct(self):
+        axes = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[-2*PI, 2*PI, PI],
+            y_range=[-1, 1, 1],
+            # 坐标轴长度（比例）
+            x_length=10,
+            y_length=2,
+            axis_config={"color": GREEN},
+            x_axis_config={
+                # 尺度标出数值
+                "numbers_to_include": np.arange(-2*PI, 2.01*PI, PI),
+                "decimal_number_config": {"num_decimal_places": 2},
+                # 大尺度标记
+                # "numbers_with_elongated_ticks": np.arange(-2*PI, 2*PI, PI),
+            },
+            y_axis_config={
+                "numbers_to_include": np.arange(-1, 1.01, .5),
+            },
+            tips=False,  # 坐标箭头
+        )
+        t = ValueTracker(0)
+        t.add_updater(lambda m, dt: m.increment_value(dt))
+        forward_plot = axes.plot(lambda x: self.w(x, 0).real, color=BLUE,
+                                 x_range=[-2*PI, 2*PI, PI/4])
+        axes_labels = axes.get_axis_labels(
+            x_label=Tex(r"x"), y_label=Tex(r"w(x,0)"))
+
+        def update_forward_plot(mobj):
+            mobj.become(axes.plot(lambda x: self.w(x, t.get_value()).real, color=BLUE,
+                                  x_range=[-2*PI, 2*PI, PI/4]))
+        forward_plot.add_updater(update_forward_plot)
+        self.add(t)
+        self.add(axes, axes_labels, forward_plot)
+        self.wait(2*PI)
+
+
+class FlexuralWavesVField(Scene):
+    rho = 1  # density (assumed constant)
+    E = 1  # elastic modulus (assumed constant)
+    omega = 1  # angular frequency (assumed constant) (eq.50, P.225)
+    h = 20  # cross section height (assumed constant) (above eq.196, P.246)
+    b = 1  # cross section width (assumed constant) (above eq.196, P.246)
+    I = b*h**3/12  # moment of inertia (eq.196, P.246) 
+    A = h*b  # cross section area
+    m = rho*A  # mass of the infinitesimal element dx (above eq.10, P.218)
+    # c = (E/rho)**(1/2)  # wave speed (eq.10, P.218)
+    # gamma = omega / c  # wave number (eq.53, P.225)
+    a = ((E*h**2)/(12*rho))**(1/4)  # characteristic length (eq.196, P.246)
+    gamma = omega**(1/2) / a  # wave number (eq.196, P.246)
+    c_F = omega / gamma  # flexural wave speed (eq.209, P.247)
+
+    def w(self, x, t):
+        """vertical displacement"""
+        A1 = 1
+        A2 = 1
+        # propagating = A1*np.cos(self.gamma*x-self.omega*t)
+        propagating = A1*np.exp(1j*(self.gamma*x-self.omega*t))
+        # evanescent = A2*np.exp(-self.gamma*x)*np.exp(-1j*self.omega*t)
+        return propagating
+
+    def u(self, x, z, t):
+        """horizontal displacement
+        
+        Note: according to eq. 188, P.245, u(x,z,t) = -z*w'(x,t),
+        but u(x,z,t) needs to be -(-z*w'(x,t)) to match the graph generated.
+        """
+        return 1j*self.gamma*z*self.w(x, t)
+
+    def construct(self):
+        axes = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[0, 60, 10],
+            y_range=[-10, 10, 5],
+            # 坐标轴长度（比例）
+            x_length=12,
+            y_length=4,
+            axis_config={"color": GREEN},
+            x_axis_config={
+                "numbers_to_include": np.arange(0, 60.01, 10),
+            },
+            y_axis_config={
+                "numbers_to_include": np.arange(-10.01, 10.01, 5),
+            },
+            tips=False,  # 坐标箭头
+        )
+
+        t = ValueTracker(0)
+        t.add_updater(lambda m, dt: m.increment_value(dt))
+
+        self.add(axes)
+
+        def func(x, z):
+            vertical = self.w(x, t.get_value()).real
+            horizontal = self.u(x, z, t.get_value()).real
+            return horizontal, vertical
+
+        # adjust the rate of x and y axis to make the vector field look good
+        rate_x = .2
+        rate_y = 1
+
+        def Field():
+            vgroup = VGroup()
+            for x in np.arange(0, 60.1, 1):
+                for z in np.arange(-10, 10.1, 1):
+                    result = func(x, z)
+                    vector = Arrow(start=axes.coords_to_point(x, z),
+                                   end=axes.coords_to_point(
+                                       x+rate_x*result[0], z+rate_y*result[1]),
+                                   buff=0)
+                    vgroup.add(vector)
+            return vgroup
+        
+        field = Field()
+
+        def update_field(mobj):
+            vgroup = Field()
+            mobj.become(vgroup)
+        
+        field.add_updater(update_field)
+        self.add(field)
+        self.add(t)
         self.wait(2*PI)
