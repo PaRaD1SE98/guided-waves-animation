@@ -1088,7 +1088,7 @@ class FlexuralWavesVField(Scene):
     omega = 1  # angular frequency (assumed constant) (eq.50, P.225)
     h = 20  # cross section height (assumed constant) (above eq.196, P.246)
     b = 1  # cross section width (assumed constant) (above eq.196, P.246)
-    I = b*h**3/12  # moment of inertia (eq.196, P.246) 
+    I = b*h**3/12  # moment of inertia (eq.196, P.246)
     A = h*b  # cross section area
     m = rho*A  # mass of the infinitesimal element dx (above eq.10, P.218)
     # c = (E/rho)**(1/2)  # wave speed (eq.10, P.218)
@@ -1098,17 +1098,20 @@ class FlexuralWavesVField(Scene):
     c_F = omega / gamma  # flexural wave speed (eq.209, P.247)
 
     def w(self, x, t):
-        """vertical displacement"""
-        A1 = 1
+        """vertical displacement
+        
+        Note: (eq.211, P.247)
+        """
         A2 = 1
-        # propagating = A1*np.cos(self.gamma*x-self.omega*t)
-        propagating = A1*np.exp(1j*(self.gamma*x-self.omega*t))
-        # evanescent = A2*np.exp(-self.gamma*x)*np.exp(-1j*self.omega*t)
+        A4 = 1
+        # propagating = A2*np.cos(self.gamma*x-self.omega*t)
+        propagating = A2*np.exp(1j*(self.gamma*x-self.omega*t))
+        # evanescent = A4*np.exp(-self.gamma*x)*np.exp(-1j*self.omega*t)
         return propagating
 
     def u(self, x, z, t):
         """horizontal displacement
-        
+
         Note: according to eq. 188, P.245, u(x,z,t) = -z*w'(x,t),
         but u(x,z,t) needs to be -(-z*w'(x,t)) to match the graph generated.
         """
@@ -1157,13 +1160,256 @@ class FlexuralWavesVField(Scene):
                                    buff=0)
                     vgroup.add(vector)
             return vgroup
-        
+
         field = Field()
 
         def update_field(mobj):
             vgroup = Field()
             mobj.become(vgroup)
+
+        field.add_updater(update_field)
+        self.add(field)
+        self.add(t)
+        self.wait(2*PI)
+
+
+class DispersionWave(Scene):
+    rho = 100  # density (assumed constant)
+    E = 1  # elastic modulus (assumed constant)
+    h = 100  # cross section height (assumed constant) (above eq.196, P.246)
+    b = 1  # cross section width (assumed constant) (above eq.196, P.246)
+    I = b*h**3/12  # moment of inertia (eq.196, P.246)
+    A = h*b  # cross section area
+    m = rho*A  # mass of the infinitesimal element dx (above eq.10, P.218)
+    a = (E*I/m)**(1/4)  # characteristic length (eq.196, P.246)
+
+    omega = 100  # angular frequency (assumed constant) (eq.50, P.225)
+
+    @property
+    def gamma(self):
+        """wave number (eq.196, P.246)"""
+        return self.omega**(1/2) / self.a
+
+    @property
+    def c_F(self):
+        """flexural wave speed (eq.209, P.247)"""
+        return self.a*self.omega**(1/2)
+
+    @property
+    def c_gF(self):
+        """group velocity (eq.234, P.253)"""
+        return 2*self.a*self.omega**(1/2)
+
+    def gaussian(self, x, t, sigma=5):
+        return np.exp(-.5*((self.gamma*x-self.omega*t)/sigma)**2)
+
+    def w(self, x, t):
+        """flexural wave vertical displacement"""
+        return np.exp(1j*(self.gamma*x-self.omega*t))
+
+    def u(self, x, t):
+        return self.gaussian(x, t)*self.w(x, t)
+
+    def construct(self):
+        axes = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[0, 20*PI, PI/4],
+            y_range=[-1, 1, 0.5],
+            # 坐标轴长度（比例）
+            x_length=12,
+            y_length=4,
+            axis_config={"color": GREEN},
+        )
+        self.add(axes)
+        t = ValueTracker(0)
+
+        def update_t(m, dt):
+            m.increment_value(dt)
+            self.omega -= .025*self.omega
+        t.add_updater(update_t)
+
+        def get_plot():
+            return axes.plot(lambda x: self.u(x, t.get_value()), color=BLUE)
+        plot = always_redraw(get_plot)
+        c_F_Label = MathTex(r"c_F =").next_to(axes, DOWN)
+        c_gF_Label = MathTex(r"c_{gF} =").next_to(c_F_Label, DOWN)
+
+        def get_c_F():
+            return DecimalNumber(self.c_F, num_decimal_places=2).next_to(c_F_Label, RIGHT)
+        c_F = always_redraw(get_c_F)
+
+        def get_c_gF():
+            return DecimalNumber(self.c_gF, num_decimal_places=2).next_to(c_gF_Label, RIGHT)
+        c_gF = always_redraw(get_c_gF)
+
+        self.add(c_F_Label, c_gF_Label)
+        self.add(c_F)
+        self.add(c_gF)
+
+        self.add(t)
+        self.add(plot)
+        self.wait(2*PI)
+
+
+class GaussianWavePacket(Scene):
+    c = 1
+    k = 5
+
+    def u(self, x, t):
+        return np.exp(-(x-self.c*t)**2+1j*self.k*(x-self.c*t))
+
+    def dispersive_u(self, x, t):
+        # https://en.wikipedia.org/wiki/Wave_packet#Dispersive
+        return ((2/PI)**(1/4)/(1+2j*t)**(1/2))*np.exp(-1/4*self.k**2)*np.exp(-1/(1+2j*t)*(x-1j*self.k/2)**2)
+
+    def construct(self):
+        axes = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[0, 20, 1],
+            y_range=[-1, 1, 0.5],
+            # 坐标轴长度（比例）
+            x_length=12,
+            y_length=4,
+            axis_config={"color": GREEN},
+        )
+        self.add(axes)
+        t = ValueTracker(0)
+        t.add_updater(lambda m, dt: m.increment_value(dt))
+
+        def get_plot():
+            return axes.plot(lambda x: self.dispersive_u(x, t.get_value()), color=BLUE)
+        plot = always_redraw(get_plot)
+
+        self.add(t)
+        self.add(plot)
+        self.wait(10)
+
+
+class GroupVelocity(Scene):
+    gamma1 = 10
+    gamma2 = 14
+    omega1 = 1
+    omega2 = 4
+
+    d_gamma = gamma2-gamma1
+    d_omega = omega2-omega1
+
+    gamma_avg = (gamma1+gamma2)/2
+    omega_avg = (omega1+omega2)/2
+
+    c_g = d_omega/d_gamma  # group velocity (eq.221, P.252)
+    c_avg = omega_avg/gamma_avg  # average phase velocity (eq.220, P.251)
+
+    def u(self, x, t):
+        return 1/2*(np.cos(self.gamma1*x-self.omega1*t) + np.cos(self.gamma2*x-self.omega2*t))
+
+    def g(self, x, t):
+        return np.cos(self.d_gamma*x/2-self.d_omega*t/2)
+
+    def construct(self):
+        axes = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[0, 2*PI, PI/4],
+            y_range=[-1, 1, 0.5],
+            # 坐标轴长度（比例）
+            x_length=12,
+            y_length=4,
+            axis_config={"color": GREEN},
+        )
+        self.add(axes)
+
+        c_avg_Label = MathTex(
+            r"c_{av} = "+f"{self.c_avg:.2f}", color=BLUE).next_to(axes, DOWN)
+        c_g_Label = MathTex(
+            r"c_g = "+f"{self.c_g:.2f}", color=RED).next_to(c_avg_Label, DOWN)
+        self.add(c_avg_Label, c_g_Label)
+        t = ValueTracker(0)
+        t.add_updater(lambda m, dt: m.increment_value(dt))
+
+        def get_plot():
+            return axes.plot(lambda x: self.u(x, t.get_value()), color=BLUE)
+        plot = always_redraw(get_plot)
+
+        def get_gplot():
+            return axes.plot(lambda x: self.g(x, t.get_value()), color=RED)
+        gplot = always_redraw(get_gplot)
+
+        def get_ngplot():
+            return axes.plot(lambda x: -self.g(x, t.get_value()), color=RED)
+        ngplot = always_redraw(get_ngplot)
+        self.add(t)
+        self.add(plot)
+        self.add(gplot)
+        self.add(ngplot)
+        self.wait(2*PI)
+
+
+class SVWave(Scene):
+    l = 1  # length of beam
+    A = 1  # cross-sectional area
+    rho = 1  # density
+    G = 1  # shear modulus
+    omega = 1  # angular frequency
+
+    m = rho*A
+    c = (G/rho)**(1/2)  # wave speed
+    gamma = omega/c  # wave number
+
+    def w(self, x, t):
+        """shear wave
         
+        Note: Purely shear wave and no flexure takes place. (P. 268)
+        """
+        return np.exp(1j*(self.gamma*x-self.omega*t))
+    
+    def construct(self):
+        axes = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[0, 60, 10],
+            y_range=[-10, 10, 5],
+            # 坐标轴长度（比例）
+            x_length=12,
+            y_length=4,
+            axis_config={"color": GREEN},
+            x_axis_config={
+                "numbers_to_include": np.arange(0, 60.01, 10),
+            },
+            y_axis_config={
+                "numbers_to_include": np.arange(-10.01, 10.01, 5),
+            },
+            tips=False,  # 坐标箭头
+        )
+
+        t = ValueTracker(0)
+        t.add_updater(lambda m, dt: m.increment_value(dt))
+
+        self.add(axes)
+
+        def func(x, z):
+            vertical = self.w(x, t.get_value()).real
+            return vertical
+
+        # adjust the rate of y axis to make the vector field look good
+        rate_y = 1
+
+        def Field():
+            vgroup = VGroup()
+            for x in np.arange(0, 60.1, 1):
+                for z in np.arange(-10, 10.1, 1):
+                    result = func(x, z)
+                    vector = Arrow(start=axes.coords_to_point(x, z),
+                                   end=axes.coords_to_point(
+                                       x, z+rate_y*result),
+                                   buff=0)
+                    vgroup.add(vector)
+            return vgroup
+
+        field = Field()
+
+        def update_field(mobj):
+            vgroup = Field()
+            mobj.become(vgroup)
+
         field.add_updater(update_field)
         self.add(field)
         self.add(t)
