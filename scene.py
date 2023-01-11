@@ -1091,15 +1091,13 @@ class FlexuralWavesVField(Scene):
     I = b*h**3/12  # moment of inertia (eq.196, P.246)
     A = h*b  # cross section area
     m = rho*A  # mass of the infinitesimal element dx (above eq.10, P.218)
-    # c = (E/rho)**(1/2)  # wave speed (eq.10, P.218)
-    # gamma = omega / c  # wave number (eq.53, P.225)
     a = ((E*h**2)/(12*rho))**(1/4)  # characteristic length (eq.196, P.246)
     gamma = omega**(1/2) / a  # wave number (eq.196, P.246)
     c_F = omega / gamma  # flexural wave speed (eq.209, P.247)
 
     def w(self, x, t):
         """vertical displacement
-        
+
         Note: (eq.211, P.247)
         """
         A2 = 1
@@ -1173,8 +1171,9 @@ class FlexuralWavesVField(Scene):
         self.wait(2*PI)
 
 
-class DispersionWave(Scene):
-    rho = 100  # density (assumed constant)
+class FlexuralWaveDispersion(Scene):
+    """c_F change with omega"""
+    rho = 200  # density (assumed constant)
     E = 1  # elastic modulus (assumed constant)
     h = 100  # cross section height (assumed constant) (above eq.196, P.246)
     b = 1  # cross section width (assumed constant) (above eq.196, P.246)
@@ -1195,25 +1194,36 @@ class DispersionWave(Scene):
         """flexural wave speed (eq.209, P.247)"""
         return self.a*self.omega**(1/2)
 
-    @property
-    def c_gF(self):
-        """group velocity (eq.234, P.253)"""
-        return 2*self.a*self.omega**(1/2)
-
-    def gaussian(self, x, t, sigma=5):
-        return np.exp(-.5*((self.gamma*x-self.omega*t)/sigma)**2)
-
     def w(self, x, t):
         """flexural wave vertical displacement"""
         return np.exp(1j*(self.gamma*x-self.omega*t))
 
+    def gaussian(self, x, t, tau=None):
+        """gaussian distribution with changing center and width
+
+        Args:
+            sigma (float, optional): width. Defaults bind to time.
+
+        https://en.wikipedia.org/wiki/Normal_distribution#Alternative_parameterizations
+        """
+        # mu defining the center of the distribution
+        mu = self.gamma*x-self.omega*t
+
+        #  precision tau defining the width of the distribution
+        # higher precision means narrower distribution
+        # tau = 1/sigma**2
+        # Note that the peak decreases as width increases
+        tau = np.exp(-t**1) if tau is None else tau
+
+        return 5*np.sqrt(tau/(2*PI))*np.exp(-tau*(x-mu)**2/2)
+
     def u(self, x, t):
-        return self.gaussian(x, t)*self.w(x, t)
+        return self.gaussian(x, t,tau=.05)*self.w(x, t)
 
     def construct(self):
         axes = Axes(
             # 坐标轴数值范围和步长
-            x_range=[0, 20*PI, PI/4],
+            x_range=[0, 20*PI, PI],
             y_range=[-1, 1, 0.5],
             # 坐标轴长度（比例）
             x_length=12,
@@ -1225,70 +1235,134 @@ class DispersionWave(Scene):
 
         def update_t(m, dt):
             m.increment_value(dt)
-            self.omega -= .025*self.omega
+            # make omega decrease with time
+            # output with high quality need /4 (because of the 4x fps)
+            self.omega -= .025*self.omega/4
         t.add_updater(update_t)
 
         def get_plot():
             return axes.plot(lambda x: self.u(x, t.get_value()), color=BLUE)
         plot = always_redraw(get_plot)
-        c_F_Label = MathTex(r"c_F =").next_to(axes, DOWN)
-        c_gF_Label = MathTex(r"c_{gF} =").next_to(c_F_Label, DOWN)
+        omega_Label = MathTex(r"\omega =").next_to(axes, DOWN)
+        c_F_Label = MathTex(r"c_F =").next_to(omega_Label, DOWN)
+
+        def get_omega():
+            return DecimalNumber(self.omega, num_decimal_places=2).next_to(omega_Label, RIGHT)
+        omega = always_redraw(get_omega)
 
         def get_c_F():
             return DecimalNumber(self.c_F, num_decimal_places=2).next_to(c_F_Label, RIGHT)
         c_F = always_redraw(get_c_F)
 
-        def get_c_gF():
-            return DecimalNumber(self.c_gF, num_decimal_places=2).next_to(c_gF_Label, RIGHT)
-        c_gF = always_redraw(get_c_gF)
-
-        self.add(c_F_Label, c_gF_Label)
+        self.add(omega_Label, c_F_Label)
+        self.add(omega)
         self.add(c_F)
-        self.add(c_gF)
 
         self.add(t)
         self.add(plot)
         self.wait(2*PI)
 
 
-class GaussianWavePacket(Scene):
-    c = 1
-    k = 5
+class GaussianToneBurst(Scene):
+    c = 1  # wave speed
+    k = 5  # wave number
+
+    def f(self, x, t):
+        """a forward propagating wave"""
+        return np.exp(1j*self.k*(x-self.c*t))
+
+    def gaussian(self, x, t, tau=None):
+        """gaussian distribution with changing center and width
+
+        Args:
+            sigma (float, optional): width. Defaults bind to time.
+
+        https://en.wikipedia.org/wiki/Normal_distribution#Alternative_parameterizations
+        """
+        # mu defining the center of the distribution
+        mu = self.k*(x-self.c*t)
+
+        #  precision tau defining the width of the distribution
+        # higher precision means narrower distribution
+        # tau = 1/sigma**2
+        # Note that the peak decreases as width increases
+        tau = np.exp(-t**1) if tau is None else tau
+
+        return 2*np.sqrt(tau/(2*PI))*np.exp(-tau*(x-mu)**2/2)
 
     def u(self, x, t):
-        return np.exp(-(x-self.c*t)**2+1j*self.k*(x-self.c*t))
+        """without dispersion
 
-    def dispersive_u(self, x, t):
+        an unchanged gaussian distribution * wave 
+        becomes a tone burst without dispersion
+        """
+        return self.gaussian(x, t, sigma=5)*self.f(x, t)
+
+    def u_d(self, x, t):
+        """with dispersion
+
         # https://en.wikipedia.org/wiki/Wave_packet#Dispersive
-        return ((2/PI)**(1/4)/(1+2j*t)**(1/2))*np.exp(-1/4*self.k**2)*np.exp(-1/(1+2j*t)*(x-1j*self.k/2)**2)
+        # https://en.wikipedia.org/wiki/Normal_distribution#Alternative_parameterizations
+        a changing gaussian distribution * wave
+        becomes a tone burst with dispersion
+        """
+        # return ((2/PI)**(1/4)/(1+2j*t)**(1/2))*np.exp(-1/4*self.k**2)*np.exp(-1/(1+2j*t)*(x-1j*self.k/2)**2)
+        return self.gaussian(x, t)*self.f(x, t)
+
+    def fft(self, u):
+        """fast fourier transform
+
+        Args:
+            u (array): wave function
+
+        Returns:
+            array: frequency spectrum
+        """
+        return np.fft.fftshift(np.abs(np.fft.fft(u).real))
 
     def construct(self):
         axes = Axes(
             # 坐标轴数值范围和步长
-            x_range=[0, 20, 1],
+            x_range=[-PI/4, 4*PI, PI/4],
             y_range=[-1, 1, 0.5],
             # 坐标轴长度（比例）
             x_length=12,
-            y_length=4,
+            y_length=3,
             axis_config={"color": GREEN},
-        )
-        self.add(axes)
+            tips=False,  # 坐标箭头
+        ).to_edge(UP)
+        fft_axes = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[0, 100, 1],
+            y_range=[0, 5, 1],
+            # 坐标轴长度（比例）
+            x_length=12,
+            y_length=3,
+            axis_config={"color": GREEN, "include_ticks": False},
+            tips=False,  # 坐标箭头
+
+        ).next_to(axes, DOWN)
+        self.add(axes, fft_axes)
         t = ValueTracker(0)
         t.add_updater(lambda m, dt: m.increment_value(dt))
 
         def get_plot():
-            return axes.plot(lambda x: self.dispersive_u(x, t.get_value()), color=BLUE)
+            return axes.plot(lambda x: self.u_d(x, t.get_value()).real, color=BLUE)
         plot = always_redraw(get_plot)
 
+        def get_fft_plot():
+            return fft_axes.plot(lambda x: self.fft(self.u_d(x, t.get_value())), color=BLUE, use_vectorized=True)
+        fft_plot = always_redraw(get_fft_plot)
         self.add(t)
         self.add(plot)
-        self.wait(10)
+        self.add(fft_plot)
+        self.wait(4*PI)
 
 
 class GroupVelocity(Scene):
-    gamma1 = 10
+    gamma1 = 10  # wave speed
     gamma2 = 14
-    omega1 = 1
+    omega1 = 1  # frequency
     omega2 = 4
 
     d_gamma = gamma2-gamma1
@@ -1301,9 +1375,14 @@ class GroupVelocity(Scene):
     c_avg = omega_avg/gamma_avg  # average phase velocity (eq.220, P.251)
 
     def u(self, x, t):
+        """wave with packet
+
+        construct by adding two waves with different wave speed and frequency
+        """
         return 1/2*(np.cos(self.gamma1*x-self.omega1*t) + np.cos(self.gamma2*x-self.omega2*t))
 
     def g(self, x, t):
+        """envelope of the wave packet"""
         return np.cos(self.d_gamma*x/2-self.d_omega*t/2)
 
     def construct(self):
@@ -1344,7 +1423,7 @@ class GroupVelocity(Scene):
         self.wait(2*PI)
 
 
-class SVWave(Scene):
+class ShearVerticalWave(Scene):
     l = 1  # length of beam
     A = 1  # cross-sectional area
     rho = 1  # density
@@ -1357,11 +1436,11 @@ class SVWave(Scene):
 
     def w(self, x, t):
         """shear wave
-        
+
         Note: Purely shear wave and no flexure takes place. (P. 268)
         """
         return np.exp(1j*(self.gamma*x-self.omega*t))
-    
+
     def construct(self):
         axes = Axes(
             # 坐标轴数值范围和步长
