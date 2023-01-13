@@ -1111,7 +1111,7 @@ class FlexuralWavesVField(Scene):
         """horizontal displacement
 
         Note: according to eq. 188, P.245, u(x,z,t) = -z*w'(x,t),
-        but u(x,z,t) needs to be -(-z*w'(x,t)) to match the graph generated.
+        but u(x,z,t) needs to be -(-z*w'(x,t)) to match the graph the author provided.
         """
         return 1j*self.gamma*z*self.w(x, t)
 
@@ -1182,7 +1182,8 @@ class FlexuralWaveDispersion(Scene):
     m = rho*A  # mass of the infinitesimal element dx (above eq.10, P.218)
     a = (E*I/m)**(1/4)  # characteristic length (eq.196, P.246)
 
-    omega = 100  # angular frequency (assumed constant) (eq.50, P.225)
+    # angular frequency (assumed decreasing with time) (eq.50, P.225)
+    omega = 100
 
     @property
     def gamma(self):
@@ -1213,12 +1214,15 @@ class FlexuralWaveDispersion(Scene):
         # higher precision means narrower distribution
         # tau = 1/sigma**2
         # Note that the peak decreases as width increases
-        tau = np.exp(-t**1) if tau is None else tau
+        tau = np.exp(-t) if tau is None else tau
 
         return 5*np.sqrt(tau/(2*PI))*np.exp(-tau*(x-mu)**2/2)
 
     def u(self, x, t):
-        return self.gaussian(x, t,tau=.05)*self.w(x, t)
+        """
+        gaussian fixed width but propagating with time times wave
+        """
+        return self.gaussian(x, t, tau=.05)*self.w(x, t)
 
     def construct(self):
         axes = Axes(
@@ -1375,14 +1379,18 @@ class GroupVelocity(Scene):
     c_avg = omega_avg/gamma_avg  # average phase velocity (eq.220, P.251)
 
     def u(self, x, t):
-        """wave with packet
+        """carrier wave
 
-        construct by adding two waves with different wave speed and frequency
+        Note: constructed by adding two waves with different wave speed and frequency
+            (eq. 215, P.251)
         """
         return 1/2*(np.cos(self.gamma1*x-self.omega1*t) + np.cos(self.gamma2*x-self.omega2*t))
 
     def g(self, x, t):
-        """envelope of the wave packet"""
+        """modulation wave
+
+        Note: (eq. 219, P.251) first part of the equation
+        """
         return np.cos(self.d_gamma*x/2-self.d_omega*t/2)
 
     def construct(self):
