@@ -1431,14 +1431,11 @@ class GroupVelocity(Scene):
         self.wait(2*PI)
 
 
-class ShearVerticalWave(Scene):
-    l = 1  # length of beam
-    A = 1  # cross-sectional area
+class ShearVerticalWaveVField(Scene):
     rho = 1  # density
     G = 1  # shear modulus
     omega = 1  # angular frequency
 
-    m = rho*A
     c = (G/rho)**(1/2)  # wave speed
     gamma = omega/c  # wave number
 
@@ -1487,6 +1484,169 @@ class ShearVerticalWave(Scene):
                     vector = Arrow(start=axes.coords_to_point(x, z),
                                    end=axes.coords_to_point(
                                        x, z+rate_y*result),
+                                   buff=0)
+                    vgroup.add(vector)
+            return vgroup
+
+        field = Field()
+
+        def update_field(mobj):
+            vgroup = Field()
+            mobj.become(vgroup)
+
+        field.add_updater(update_field)
+        self.add(field)
+        self.add(t)
+        self.wait(2*PI)
+
+
+class PressureWaveVField(Scene):
+    rho = 1  # density
+    E = 40  # elastic modulus
+    omega = 2  # angular frequency
+    # https://en.wikipedia.org/wiki/Poisson%27s_ratio
+    v = 0  # Poisson's ratio ranging between 0.0 and 0.5
+
+    # pressure wave speed (eq. 474, P. 292)
+    c = (((1-v)/((1+v)*(1-2*v)))*(E/rho))**(1/2)
+    gamma = omega/c  # wave number
+
+    def u(self, x, t):
+        """pressure wave
+
+        Note: The wave propagates in the direction of the oscillation. (eq.485, P. 294)
+        """
+        return np.exp(1j*(self.gamma*x-self.omega*t))
+
+    def construct(self):
+        axes = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[0, 60, 10],
+            y_range=[-10, 10, 5],
+            # 坐标轴长度（比例）
+            x_length=12,
+            y_length=4,
+            axis_config={"color": GREEN},
+            x_axis_config={
+                "numbers_to_include": np.arange(0, 60.01, 10),
+            },
+            y_axis_config={
+                "numbers_to_include": np.arange(-10.01, 10.01, 5),
+            },
+            tips=False,  # 坐标箭头
+        )
+
+        t = ValueTracker(0)
+        t.add_updater(lambda m, dt: m.increment_value(dt))
+
+        self.add(axes)
+
+        def func(x, z):
+            horizontal = self.u(x, t.get_value()).real
+            return horizontal
+
+        # adjust the rate of x axis to make the vector field look good
+        rate_x = 1
+
+        def Field():
+            vgroup = VGroup()
+            for x in np.arange(0, 60.1, 1):
+                for z in np.arange(-10, 10.1, 1):
+                    result = func(x, z)
+                    vector = Arrow(start=axes.coords_to_point(x, z),
+                                   end=axes.coords_to_point(
+                                       x+rate_x*result, z),
+                                   buff=0)
+                    vgroup.add(vector)
+            return vgroup
+
+        field = Field()
+
+        def update_field(mobj):
+            vgroup = Field()
+            mobj.become(vgroup)
+
+        field.add_updater(update_field)
+        self.add(field)
+        self.add(t)
+        self.wait(2*PI)
+
+
+class RayleighWaveVField(Scene):
+    A = .1  # amplitude
+    omega = 2  # angular frequency
+    c_P = 5  # pressure wave speed
+    c_S = 5  # shear-vertical wave speed
+    v = 0.5  # Poisson's ratio ranging between 0.0 and 0.5
+
+    # a common approximation of the rayleigh wave speed (eq. 28, P. 312)
+    c_R = c_S*((0.87+1.12*v)/(1+v))
+    xi = omega/c_R  # wave number (eq. 29, P. 313)
+    alpha = (xi**2*(1-c_R**2/c_P**2))**(1/2)  # (eq. 23, P. 312)
+    beta = (xi**2*(1-c_R**2/c_S**2))**(1/2)  # (eq. 23, P. 312)
+
+    def u_x(self, x, y, t):
+        """pressure wave
+
+        Note: Add a negative y to fit the author provided animation.
+        """
+        y = -y
+        u_x_y = self.A*1j*(self.xi*np.exp(-self.alpha*y)
+                           - (self.beta**2+self.xi**2)
+                           / (2*self.xi)*np.exp(-self.beta*y))
+        return u_x_y*np.exp(1j*(self.xi*x-self.omega*t))
+
+    def u_y(self, x, y, t):
+        """shear-vertical wave
+
+        Note: Add a negative y to fit the author provided animation.
+        """
+        y = -y
+        u_y_y = self.A*(- self.alpha*np.exp(-self.alpha*y)
+                        + (self.beta**2+self.xi**2)
+                        / (2*self.beta)*np.exp(-self.beta*y))
+        return u_y_y*np.exp(1j*(self.xi*x-self.omega*t))
+
+    def construct(self):
+        axes = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[0, 60, 10],
+            y_range=[0, 20, 5],
+            # 坐标轴长度（比例）
+            x_length=12,
+            y_length=4,
+            axis_config={"color": GREEN},
+            x_axis_config={
+                "numbers_to_include": np.arange(0, 60.01, 10),
+            },
+            y_axis_config={
+                "numbers_to_include": np.arange(0.01, 20.01, 5),
+            },
+            tips=False,  # 坐标箭头
+        )
+
+        t = ValueTracker(0)
+        t.add_updater(lambda m, dt: m.increment_value(dt))
+
+        self.add(axes)
+
+        def func(x, y):
+            P = self.u_x(x, y, t.get_value()).real
+            SV = self.u_y(x, y, t.get_value()).real
+            return P, SV
+
+        # adjust the rate of axis to make the vector field look good
+        rate_x = 2
+        rate_y = .7
+
+        def Field():
+            vgroup = VGroup()
+            for x in np.arange(0, 60.1, 1):
+                for y in np.arange(0, 20.1, 1):
+                    P, SV = func(x, y)
+                    vector = Arrow(start=axes.coords_to_point(x, y),
+                                   end=axes.coords_to_point(
+                                       x+rate_x*P, y+rate_y*SV),
                                    buff=0)
                     vgroup.add(vector)
             return vgroup
