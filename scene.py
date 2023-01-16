@@ -1631,6 +1631,7 @@ class RayleighWaveVField(Scene):
         self.add(axes)
 
         def func(x, y):
+            """P+SV Solution"""
             P = self.u_x(x, y, t.get_value()).real
             SV = self.u_y(x, y, t.get_value()).real
             return P, SV
@@ -1658,6 +1659,121 @@ class RayleighWaveVField(Scene):
             mobj.become(vgroup)
 
         field.add_updater(update_field)
+        self.add(field)
+        self.add(t)
+        self.wait(2*PI)
+
+
+class SHWaveXSymmetricVField(Scene):
+    d = 1  # half of the thickness of the plate
+    C1 = 0  # amplitude 1 (eq. 48, P. 316) symmetric when C1=0 and C2!=0
+    C2 = 1  # amplitude 2 (eq. 48, P. 316) anti-symmetric when C2=0 and C1!=0
+
+    # the value of omega, xi, c_S should match the requirement of the mode
+    omega = 1  # SH angular frequency
+    xi = 1  # SH wave number (eq. 34, P. 314)
+    # Standing wave speed(omega_S/gamma_S relation) (eq. 36, P. 315)
+    # c_S = 1
+
+    # wave number of the standing wave(eq. 40, P. 315)
+    # eta = ((omega**2/c_S**2)-xi**2)**(1/2)
+
+    n = 2  # mode number
+    if C1 == 0 and C2 != 0:  # symmetric
+        eta = n*PI/d # (eq.52, P. 316)
+    elif C2 == 0 and C1 != 0:  # anti-symmetric
+        eta = (2*n+1)*PI/2/d  # (eq.56, P. 317)
+
+
+    # select two to be constants, and let the other one be calculated
+    # derived from (eq. 40, P. 315)
+    # omega = ((eta**2+xi**2)*c_S**2)**(1/2)  # SH angular frequency
+    # xi = ((omega**2/c_S**2)-eta**2)**(1/2)  # SH wave number (eq. 34, P. 314)
+
+    # Standing wave speed (eq. 36, P. 315)
+    c_S = (omega**2/(eta**2+xi**2))**(1/2)
+
+    def h(self, y):
+        """standing wave
+
+        Note: symmetric when C1=0 and anti-symmetric when C2=0
+        """
+        return self.C1*np.sin(self.eta*y)+self.C2*np.cos(self.eta*y)
+
+    def u_z(self, x, y, t):
+        """SH waves
+
+        Note: (eq. 36, P. 314)
+        """
+        return self.h(y)*np.exp(1j*(self.xi*x-self.omega*t))
+
+    def construct(self):
+        axes = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[0, 60, 10],
+            y_range=[-self.d, self.d, .5],
+            # 坐标轴长度（比例）
+            x_length=12,
+            y_length=4,
+            axis_config={"color": GREEN},
+            x_axis_config={
+                "numbers_to_include": np.arange(0, 60.01, 10),
+            },
+            y_axis_config={
+                "numbers_to_include": np.arange(-self.d-.01, self.d+.01, .5),
+            },
+            tips=False,  # 坐标箭头
+        )
+
+        t = ValueTracker(0)
+        t.add_updater(lambda m, dt: m.increment_value(dt))
+
+        omega = MathTex(r"\omega = "+f"{self.omega:.2f}")
+        xi = MathTex(r"\xi = "+f"{self.xi:.2f}").next_to(omega, RIGHT)
+        c_S = MathTex(r"c_S = "+f"{self.c_S:.2f}").next_to(xi, RIGHT)
+        positive = Tex(r"+", color=GREEN).next_to(c_S, RIGHT)
+        negative = Tex(r"-", color=BLUE).next_to(positive, RIGHT)
+        text = VGroup(omega, xi, c_S, positive,
+                      negative).next_to(axes, UP)
+        symmetricity_str = None
+        if self.C1 == 0 and self.C2 != 0:
+            symmetricity_str = "Symmetric"
+        elif self.C1 != 0 and self.C2 == 0:
+            symmetricity_str = "AntiSymmetric"
+        symmetricity = Tex(symmetricity_str)
+        eta = MathTex(
+            r"\eta = "+f"{self.eta:.2f}").next_to(symmetricity, RIGHT)
+        d = MathTex(r"d = "+f"{self.d:.2f}").next_to(eta, RIGHT)
+        mode = MathTex(r"n_{mode} = "+f"{self.n}").next_to(d, RIGHT)
+        text2 = VGroup(symmetricity, eta, d, mode).next_to(axes, DOWN)
+        self.add(axes)
+        self.add(text)
+        self.add(text2)
+
+        def func(x, y):
+            return self.u_z(x, y, t.get_value()).real
+
+        # adjust the rate of axis to make the vector field look good
+        rate_z = .05
+
+        def Field():
+            vgroup = VGroup()
+            for x in np.arange(0, 60.1, 1):
+                for y in np.arange(-self.d, self.d+.1, .1):
+                    result = func(x, y)
+                    vector = Dot(radius=rate_z*result if result > 0 else -rate_z*result,
+                                 color=GREEN if result > 0 else BLUE).move_to(axes.coords_to_point(x, y))
+                    vgroup.add(vector)
+            return vgroup
+
+        field = Field()
+
+        def update_field(mobj):
+            vgroup = Field()
+            mobj.become(vgroup)
+
+        field.add_updater(update_field)
+
         self.add(field)
         self.add(t)
         self.wait(2*PI)
