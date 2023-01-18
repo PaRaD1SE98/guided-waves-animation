@@ -1110,7 +1110,7 @@ class FlexuralWavesVField(Scene):
     def u(self, x, z, t):
         """horizontal displacement
 
-        Note: according to eq. 188, P.245, u(x,z,t) = -z*w'(x,t),
+        Note: according to eq.188, P.245, u(x,z,t) = -z*w'(x,t),
         but u(x,z,t) needs to be -(-z*w'(x,t)) to match the graph the author provided.
         """
         return 1j*self.gamma*z*self.w(x, t)
@@ -1382,14 +1382,14 @@ class GroupVelocity(Scene):
         """carrier wave
 
         Note: constructed by adding two waves with different wave speed and frequency
-            (eq. 215, P.251)
+            (eq.215, P.251)
         """
         return 1/2*(np.cos(self.gamma1*x-self.omega1*t) + np.cos(self.gamma2*x-self.omega2*t))
 
     def g(self, x, t):
         """modulation wave
 
-        Note: (eq. 219, P.251) first part of the equation
+        Note: (eq.219, P.251) first part of the equation
         """
         return np.cos(self.d_gamma*x/2-self.d_omega*t/2)
 
@@ -1507,14 +1507,14 @@ class PressureWaveVField(Scene):
     # https://en.wikipedia.org/wiki/Poisson%27s_ratio
     v = 0  # Poisson's ratio ranging between 0.0 and 0.5
 
-    # pressure wave speed (eq. 474, P. 292)
+    # pressure wave speed (eq.474, p.292)
     c = (((1-v)/((1+v)*(1-2*v)))*(E/rho))**(1/2)
     gamma = omega/c  # wave number
 
     def u(self, x, t):
         """pressure wave
 
-        Note: The wave propagates in the direction of the oscillation. (eq.485, P. 294)
+        Note: The wave propagates in the direction of the oscillation. (eq.485, p.294)
         """
         return np.exp(1j*(self.gamma*x-self.omega*t))
 
@@ -1579,11 +1579,11 @@ class RayleighWaveVField(Scene):
     c_S = 5  # shear-vertical wave speed
     v = 0.5  # Poisson's ratio ranging between 0.0 and 0.5
 
-    # a common approximation of the rayleigh wave speed (eq. 28, P. 312)
+    # a common approximation of the rayleigh wave speed (eq.28, p.312)
     c_R = c_S*((0.87+1.12*v)/(1+v))
-    xi = omega/c_R  # wave number (eq. 29, P. 313)
-    alpha = (xi**2*(1-c_R**2/c_P**2))**(1/2)  # (eq. 23, P. 312)
-    beta = (xi**2*(1-c_R**2/c_S**2))**(1/2)  # (eq. 23, P. 312)
+    xi = omega/c_R  # wave number (eq.29, p.313)
+    alpha = (xi**2*(1-c_R**2/c_P**2))**(1/2)  # (eq.23, p.312)
+    beta = (xi**2*(1-c_R**2/c_S**2))**(1/2)  # (eq.23, p.312)
 
     def u_x(self, x, y, t):
         """pressure wave
@@ -1666,32 +1666,28 @@ class RayleighWaveVField(Scene):
 
 class SHWaveXSymmetricVField(Scene):
     d = 1  # half of the thickness of the plate
-    C1 = 0  # amplitude 1 (eq. 48, P. 316) symmetric when C1=0 and C2!=0
-    C2 = 1  # amplitude 2 (eq. 48, P. 316) anti-symmetric when C2=0 and C1!=0
+    C1 = 1  # amplitude 1 (eq.48, p.316) symmetric when C1=0 and C2!=0
+    C2 = 0  # amplitude 2 (eq.48, p.316) anti-symmetric when C2=0 and C1!=0
 
     # the value of omega, xi, c_S should match the requirement of the mode
     omega = 1  # SH angular frequency
-    xi = 1  # SH wave number (eq. 34, P. 314)
-    # Standing wave speed(omega_S/gamma_S relation) (eq. 36, P. 315)
-    # c_S = 1
+    xi = 1  # SH wave number (eq.34, p.314)
+    # c_S = 1  # SH wave speed (eq.36, p.315)
 
-    # wave number of the standing wave(eq. 40, P. 315)
+    # angular frequency of the standing wave(eq.40, p.315)
     # eta = ((omega**2/c_S**2)-xi**2)**(1/2)
 
-    n = 2  # mode number
+    n = 0  # mode number
     if C1 == 0 and C2 != 0:  # symmetric
-        eta = n*PI/d # (eq.52, P. 316)
+        eta = n*PI/d  # (eq.52, p.316)
     elif C2 == 0 and C1 != 0:  # anti-symmetric
-        eta = (2*n+1)*PI/2/d  # (eq.56, P. 317)
-
+        eta = (2*n+1)*PI/2/d  # (eq.56, p.317)
 
     # select two to be constants, and let the other one be calculated
-    # derived from (eq. 40, P. 315)
+    # derived from (eq.40, p.315)
     # omega = ((eta**2+xi**2)*c_S**2)**(1/2)  # SH angular frequency
-    # xi = ((omega**2/c_S**2)-eta**2)**(1/2)  # SH wave number (eq. 34, P. 314)
-
-    # Standing wave speed (eq. 36, P. 315)
-    c_S = (omega**2/(eta**2+xi**2))**(1/2)
+    # xi = ((omega**2/c_S**2)-eta**2)**(1/2)  # SH wave number (eq.34, p.314)
+    c_S = (omega**2/(eta**2+xi**2))**(1/2)  # SH wave speed (eq.36, p.315)
 
     def h(self, y):
         """standing wave
@@ -1703,21 +1699,21 @@ class SHWaveXSymmetricVField(Scene):
     def u_z(self, x, y, t):
         """SH waves
 
-        Note: (eq. 36, P. 314)
+        Note: (eq.36, p.314)
         """
         return self.h(y)*np.exp(1j*(self.xi*x-self.omega*t))
 
     def construct(self):
         axes = Axes(
             # 坐标轴数值范围和步长
-            x_range=[0, 60, 10],
+            x_range=[0, 30, 10],
             y_range=[-self.d, self.d, .5],
             # 坐标轴长度（比例）
             x_length=12,
             y_length=4,
             axis_config={"color": GREEN},
             x_axis_config={
-                "numbers_to_include": np.arange(0, 60.01, 10),
+                "numbers_to_include": np.arange(0, 30.01, 10),
             },
             y_axis_config={
                 "numbers_to_include": np.arange(-self.d-.01, self.d+.01, .5),
@@ -1758,7 +1754,7 @@ class SHWaveXSymmetricVField(Scene):
 
         def Field():
             vgroup = VGroup()
-            for x in np.arange(0, 60.1, 1):
+            for x in np.arange(0, 30.1, .5):
                 for y in np.arange(-self.d, self.d+.1, .1):
                     result = func(x, y)
                     vector = Dot(radius=rate_z*result if result > 0 else -rate_z*result,
@@ -1777,3 +1773,139 @@ class SHWaveXSymmetricVField(Scene):
         self.add(field)
         self.add(t)
         self.wait(2*PI)
+
+
+class SHDispersionCurve(Scene):
+    d = 5  # half of the thickness of the plate
+    C1 = 0  # amplitude 1 (eq.48, P.316) symmetric when C1=0 and C2!=0
+    C2 = 1  # amplitude 2 (eq.48, P.316) anti-symmetric when C2=0 and C1!=0
+
+    # the value of omega, xi, c_S should match the requirement of the mode
+    # omega = 1  # SH angular frequency
+    xi = 1  # SH wave number (eq.34, P.314)
+    c_S = 1  # SH wave speed(eq.36, P.315)
+
+    n = 0  # mode number
+
+    @property
+    def eta(self):
+        """SH Wave frequency"""
+        if self.C1 == 0 and self.C2 != 0:  # symmetric
+            eta = self.n*PI/self.d  # (eq.52, P.316)
+        elif self.C2 == 0 and self.C1 != 0:  # anti-symmetric
+            eta = (2*self.n+1)*PI/2/self.d  # (eq.56, P.317)
+        return eta
+
+    def c(self, omega):
+        """SH Wave Speed"""
+        result = self.c_S/np.sqrt(1-(self.eta*self.d)
+                                  ** 2*(self.c_S/(omega*self.d))**2)
+        return result
+
+    def omega_critical(self):
+        """Critical Angular Frequency
+
+        Note: Cut-off Frequency (eq.63, P.320)
+        """
+        return self.c_S*self.eta
+
+    def construct(self):
+        axes = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[0, 5, .5],  # x must be greater than 0
+            y_range=[0.9, 2, .5],
+            # 坐标轴长度（比例）
+            x_length=12,
+            y_length=4,
+            axis_config={"color": GREEN},
+            x_axis_config={
+                "numbers_to_include": np.arange(0, 5.01, .5),
+            },
+            y_axis_config={
+                "numbers_to_include": [1, 1.5, 2],
+            },
+            tips=False,  # 坐标箭头
+        )
+        axes_labels = axes.get_axis_labels(
+            x_label=Tex(r"$\omega$"),
+            y_label=Tex(r"$c(\omega)$"),
+        )
+        self.add(axes)
+
+        S0 = axes.plot(lambda x: self.c(x),
+                       x_range=[self.omega_critical()+.01, 5, .01],
+                       discontinuities=[self.omega_critical()],
+                       dt=0.01,
+                       color=RED,
+                       use_vectorized=True)
+        self.n = 1
+        S1 = axes.plot(lambda x: self.c(x),
+                       x_range=[self.omega_critical()+.01, 5, .01],
+                       discontinuities=[self.omega_critical()],
+                       dt=0.01,
+                       color=RED,
+                       use_vectorized=True)
+        self.n = 2
+        S2 = axes.plot(lambda x: self.c(x),
+                       x_range=[self.omega_critical()+.01, 5, .01],
+                       discontinuities=[self.omega_critical()],
+                       dt=0.01,
+                       color=RED,
+                       use_vectorized=True)
+        self.n = 3
+        S3 = axes.plot(lambda x: self.c(x),
+                       x_range=[self.omega_critical()+.01, 5, .01],
+                       discontinuities=[self.omega_critical()],
+                       dt=0.01,
+                       color=RED,
+                       use_vectorized=True)
+
+        self.n = 0
+        self.C1 = 1
+        self.C2 = 0
+        A0 = axes.plot(lambda x: self.c(x),
+                       x_range=[self.omega_critical()+.01, 5, .01],
+                       discontinuities=[self.omega_critical()],
+                       dt=0.01,
+                       color=BLUE,
+                       use_vectorized=True)
+        self.n = 1
+        A1 = axes.plot(lambda x: self.c(x),
+                       x_range=[self.omega_critical()+.01, 5, .01],
+                       discontinuities=[self.omega_critical()],
+                       dt=0.01,
+                       color=BLUE,
+                       use_vectorized=True)
+        self.n = 2
+        A2 = axes.plot(lambda x: self.c(x),
+                       x_range=[self.omega_critical()+.01, 5, .01],
+                       discontinuities=[self.omega_critical()],
+                       dt=0.01,
+                       color=BLUE,
+                       use_vectorized=True)
+        self.n = 3
+        A3 = axes.plot(lambda x: self.c(x),
+                       x_range=[self.omega_critical()+.01, 5, .01],
+                       discontinuities=[self.omega_critical()],
+                       dt=0.01,
+                       color=BLUE,
+                       use_vectorized=True)
+
+        self.add(S0, S1, S2, S3, A0, A1, A2, A3)
+        # hide the values larger than the y-axis
+        mask = Rectangle(height=4, width=12, color=BLACK).shift(
+            UP*4.05).set_fill(BLACK, opacity=1)
+        self.add(mask)
+        equation = MathTex(
+            r"c(\omega) = \frac{c_S}{\sqrt{1-(\eta d)^2(\frac{c_S}{\omega d})^2}}}")
+        c_S = Tex(r"$c_S$="+f"{self.c_S}").next_to(equation, RIGHT)
+        d = Tex(r"$d$="+f"{self.d}").next_to(c_S, RIGHT)
+        above_axes = VGroup(equation, c_S, d).next_to(axes, UP)
+        self.add(above_axes, axes_labels)
+
+        eta_S = MathTex(r"\eta_S = \frac{n\pi}{d}", color=RED)
+        eta_A = MathTex(
+            r"\eta_A = \frac{(2n+1) \pi}{2d}", color=BLUE).next_to(eta_S, RIGHT)
+        ns = MathTex(r"n = 0, 1, 2, 3").next_to(eta_A, RIGHT)
+        below_axes = VGroup(eta_S, eta_A, ns).next_to(axes, DOWN)
+        self.add(below_axes)
