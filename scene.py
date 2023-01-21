@@ -2220,6 +2220,8 @@ class LambWaveAntiSymmetricVField(Scene):
     def get_xi_and_omega_by_fd(self, fd):
         """use fd to calculate omega and xi
 
+        So that the omega and xi result in desired wave mode
+
         Args:
             fd (float): frequency in Hz, get by dispersion curve
         """
