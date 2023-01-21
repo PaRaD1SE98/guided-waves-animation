@@ -4,6 +4,7 @@ import math
 
 import sympy
 from manim import *
+from tqdm import tqdm
 
 
 class WavePropInBar(Scene):
@@ -1036,6 +1037,7 @@ class FlexuralWavesInABeam(Scene):
     c_F = omega / gamma  # flexural wave speed (eq.209, P.247)
 
     def w(self, x, t):
+        """Vertical displacement"""
         A1 = 1
         A2 = 1
         propagating = A1*np.exp(1j*(self.gamma*x-self.omega*t))
@@ -1043,6 +1045,7 @@ class FlexuralWavesInABeam(Scene):
         return propagating+evanescent
 
     def u(self, x, z, t):
+        """In-plane displacement"""
         return -1j*self.gamma*z*self.w(x, t)
 
     def construct(self):
@@ -1092,7 +1095,7 @@ class FlexuralWavesVField(Scene):
     A = h*b  # cross section area
     m = rho*A  # mass of the infinitesimal element dx (above eq.10, P.218)
     a = ((E*h**2)/(12*rho))**(1/4)  # characteristic length (eq.196, P.246)
-    gamma = omega**(1/2) / a  # wave number (eq.196, P.246)
+    gamma = omega**(1/2) / a  # wave number (eq.200, P.246)
     c_F = omega / gamma  # flexural wave speed (eq.209, P.247)
 
     def w(self, x, t):
@@ -1108,7 +1111,7 @@ class FlexuralWavesVField(Scene):
         return propagating
 
     def u(self, x, z, t):
-        """horizontal displacement
+        """in-plane displacement
 
         Note: according to eq.188, P.245, u(x,z,t) = -z*w'(x,t),
         but u(x,z,t) needs to be -(-z*w'(x,t)) to match the graph the author provided.
@@ -1154,7 +1157,7 @@ class FlexuralWavesVField(Scene):
                     result = func(x, z)
                     vector = Arrow(start=axes.coords_to_point(x, z),
                                    end=axes.coords_to_point(
-                                       x+rate_x*result[0], z+rate_y*result[1]),
+                                       x, z+rate_y*result[1]),
                                    buff=0)
                     vgroup.add(vector)
             return vgroup
@@ -1169,6 +1172,50 @@ class FlexuralWavesVField(Scene):
         self.add(field)
         self.add(t)
         self.wait(2*PI)
+
+
+class FlexuralWaveDispersionCurve(Scene):
+    """c_F change with omega"""
+    rho = 200  # density (assumed constant)
+    E = 1  # elastic modulus (assumed constant)
+    h = 100  # cross section height (assumed constant) (above eq.196, P.246)
+    b = 1  # cross section width (assumed constant) (above eq.196, P.246)
+    I = b*h**3/12  # moment of inertia (eq.196, P.246)
+    A = h*b  # cross section area
+    m = rho*A  # mass of the infinitesimal element dx (above eq.10, P.218)
+    a = (E*I/m)**(1/4)  # characteristic length (eq.196, P.246)
+
+    def c_F(self, omega):
+        """flexural wave speed (eq.209, P.247)
+
+        Args:
+            omega (float): angular frequency
+        """
+        return self.a*omega**(1/2)
+
+    def construct(self):
+        axes = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[0, 4, 1],
+            y_range=[0, 3, 1],
+            # 坐标轴长度（比例）
+            x_length=12,
+            y_length=4,
+            axis_config={"color": GREEN},
+            x_axis_config={
+                "numbers_to_include": np.arange(0, 4.01, 1),
+            },
+            y_axis_config={
+                "numbers_to_include": np.arange(0, 3.01, 1),
+            },
+            tips=False,  # 坐标箭头
+        )
+        label = axes.get_axis_labels(x_label="\omega", y_label="c_F")
+        self.add(axes, label)
+        dispersion_curve = axes.plot(lambda omega: self.c_F(omega),
+                                     x_range=[0, 4, .01],
+                                     color=RED)
+        self.add(dispersion_curve)
 
 
 class FlexuralWaveDispersion(Scene):
@@ -1909,3 +1956,351 @@ class SHDispersionCurve(Scene):
         ns = MathTex(r"n = 0, 1, 2, 3").next_to(eta_A, RIGHT)
         below_axes = VGroup(eta_S, eta_A, ns).next_to(axes, DOWN)
         self.add(below_axes)
+
+
+class LambWaveSymmetricVField(Scene):
+    d = 1  # half thickness of the plate
+    C = 1  # arbitrary constant
+    xi = 1  # wave number (changing)
+    omega = 1  # angular frequency (changing)
+    v = 0.33  # Poisson's ratio https://zh.wikipedia.org/zh-cn/%E6%B3%8A%E6%9D%BE%E6%AF%94
+    c_P = 1  # speed of P wave
+
+    k = (2*(1-v)/(1-2*v))**(1/2)  # (eq.26, P. 312)
+    c_S = c_P/k  # speed of SV wave (eq.26, P. 312)
+
+    @property
+    def eta_P(self):
+        """(eq.83, P.325)"""
+        return (self.omega**2/self.c_P**2-self.xi**2)**(1/2)
+
+    @property
+    def eta_S(self):
+        """(eq.83, P.325)"""
+        return (self.omega**2/self.c_S**2-self.xi**2)**(1/2)
+
+    @property
+    def f(self):
+        """frequency (before eq.103, P.328)"""
+        return self.omega/(2*PI)
+
+    @property
+    def xi_(self):
+        """(before eq.103, P.328)"""
+        return self.xi*self.d
+
+    @property
+    def D(self):
+        """(eq.101, P.328)"""
+        return (self.xi**2-self.eta_S**2)**2*np.cos(self.eta_P*self.d)*np.sin(self.eta_S*self.d)+4*self.xi**2*self.eta_P*self.eta_S*np.sin(self.eta_P*self.d)*np.cos(self.eta_S*self.d)
+
+    @property
+    def Omega(self):
+        """(before eq.103, P.328)"""
+        return self.omega*self.d/self.c_S
+
+    @property
+    def eta_P_(self):
+        """(eq.105, P.328)"""
+        return (self.Omega**2/self.k**2-self.xi_**2)**(1/2)
+
+    @property
+    def eta_S_(self):
+        """(eq.105, P.328)"""
+        return (self.Omega**2-self.xi_**2)**(1/2)
+
+    @property
+    def D_(self):
+        """(eq.108, P.328)"""
+        return (self.xi_**2-self.eta_S_**2)**2*np.cos(self.eta_P_)*np.sin(self.eta_S_)+4*self.xi_**2*self.eta_P_*self.eta_S_*np.sin(self.eta_P_)*np.cos(self.eta_S_)
+
+    def get_scatter(self):
+        """
+        for loop xi_(xi) value and Omega(omega) value to find the combination that makes D_ = 0
+        """
+        d_xi = .001
+        d_omega = .001
+        self.xi = np.arange(0, 5, d_xi)
+        self.omega = np.arange(0, 5, d_omega)
+        self.xi, self.omega = np.meshgrid(self.xi, self.omega)
+        indices = np.where(np.abs(self.D_ - 0) < 0.01)
+        xi = indices[1]
+        omega = indices[0]
+        xi_ = xi*d_xi*self.d
+        Omega = omega*d_omega*self.d/self.c_S
+        return xi_, Omega
+
+    def c_div_cS(self, Omega, xi_):
+        # (eq.103, P.328)
+        xi = xi_/self.d
+        omega = Omega*self.c_S/self.d
+        # (before eq.112, P.330)
+        c = omega/xi
+        return c/self.c_S
+
+    def fd(self, Omega):
+        # (before eq.112, P.330)
+        omega = Omega*self.c_S/self.d
+        fd = omega/(2*PI)*self.d
+        return fd
+
+    def get_xi_and_omega_by_fd(self, fd):
+        """use fd to calculate omega and xi
+
+        Args:
+            fd (float): frequency in Hz, get by dispersion curve
+        """
+        xi_, Omega = self.get_scatter()
+        c_div_cS = self.c_div_cS(Omega, xi_)
+        _fd = self.fd(Omega)
+        # find the closest fd in the scatter set
+        index = np.argmin(np.abs(_fd-fd))
+        fd = _fd[index]  # scalar
+        c_div_cS = c_div_cS[index]  # scalar
+        omega = fd*2*PI/self.d
+        xi = omega/c_div_cS*self.c_S  # (before eq.112, P.330)
+        return xi, omega
+
+    def u_x(self, x, y, t):
+        """(eq. 127, P. 334)"""
+        return -1j*self.C*(2*self.xi**2*self.eta_S*np.cos(self.eta_S*self.d)*np.cos(self.eta_P*y)-self.eta_S*(self.xi**2-self.eta_S**2)*np.cos(self.eta_P*self.d)*np.cos(self.eta_S*y))*np.exp(1j*(self.xi*x-self.omega*t))
+
+    def u_y(self, x, y, t):
+        """(eq. 127, P. 334)"""
+        return self.C*self.xi*(2*self.eta_P*self.eta_S*np.cos(self.eta_S*self.d)*np.sin(self.eta_P*y)+(self.xi**2-self.eta_S**2)*np.cos(self.eta_P*self.d)*np.sin(self.eta_S*y))*np.exp(1j*(self.xi*x-self.omega*t))
+
+    @property
+    def c_L(self):
+        """Lamb wave speed"""
+        return self.omega/self.xi
+
+    def construct(self):
+        axes = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[0, 60, 10],
+            y_range=[-self.d, self.d, .5],
+            # 坐标轴长度（比例）
+            x_length=12,
+            y_length=4,
+            axis_config={"color": GREEN},
+            x_axis_config={
+                "numbers_to_include": np.arange(0, 60.01, 10),
+            },
+            y_axis_config={
+                "numbers_to_include": np.arange(-self.d-.01, self.d+.01, .5),
+            },
+            tips=False,  # 坐标箭头
+        )
+
+        t = ValueTracker(0)
+        t.add_updater(lambda m, dt: m.increment_value(dt))
+
+        self.xi, self.omega = self.get_xi_and_omega_by_fd(.2)  # S0
+
+        def func(x, y):
+            P = self.u_x(x, y, t.get_value()).real
+            SV = self.u_y(x, y, t.get_value()).real
+            return P, SV
+
+        # adjust the rate of axis to make the vector field look good
+        rate_x = .15
+        rate_y = .03
+
+        def Field():
+            vgroup = VGroup()
+            for x in np.arange(0, 60.1, 1):
+                for y in np.arange(-self.d, self.d+.1, .1):
+                    P, SV = func(x, y)
+                    vector = Arrow(start=axes.coords_to_point(x, y),
+                                   end=axes.coords_to_point(
+                                       x+rate_x*P, y+rate_y*SV),
+                                   buff=0)
+                    vgroup.add(vector)
+            return vgroup
+
+        field = Field()
+
+        def update_field(mobj):
+            vgroup = Field()
+            mobj.become(vgroup)
+
+        field.add_updater(update_field)
+
+        self.add(axes, field, t)
+        self.wait(2*PI/self.omega)
+
+
+class LambWaveAntiSymmetricVField(Scene):
+    """Different in D, D_, u_x, u_y"""
+    d = 1  # half thickness of the plate
+    C = 1  # arbitrary constant
+    xi = 1  # wave number (changing)
+    omega = 1  # angular frequency (changing)
+    v = 0.33  # Poisson's ratio https://zh.wikipedia.org/zh-cn/%E6%B3%8A%E6%9D%BE%E6%AF%94
+    c_P = 1  # speed of P wave
+
+    k = (2*(1-v)/(1-2*v))**(1/2)  # (eq.26, P. 312)
+    c_S = c_P/k  # speed of SV wave (eq.26, P. 312)
+
+    @property
+    def eta_P(self):
+        """(eq.83, P.325)"""
+        return (self.omega**2/self.c_P**2-self.xi**2)**(1/2)
+
+    @property
+    def eta_S(self):
+        """(eq.83, P.325)"""
+        return (self.omega**2/self.c_S**2-self.xi**2)**(1/2)
+
+    @property
+    def f(self):
+        """frequency (before eq.103, P.328)"""
+        return self.omega/(2*PI)
+
+    @property
+    def xi_(self):
+        """(before eq.103, P.328)"""
+        return self.xi*self.d
+
+    @property
+    def D(self):
+        """(eq.115, P.331)"""
+        return (self.xi**2-self.eta_S**2)**2*np.sin(self.eta_P*self.d)*np.cos(self.eta_S*self.d)+4*self.xi**2*self.eta_P*self.eta_S*np.cos(self.eta_P*self.d)*np.sin(self.eta_S*self.d)
+
+    @property
+    def Omega(self):
+        """(before eq.103, P.328)"""
+        return self.omega*self.d/self.c_S
+
+    @property
+    def eta_P_(self):
+        """(eq.105, P.328)"""
+        return (self.Omega**2/self.k**2-self.xi_**2)**(1/2)
+
+    @property
+    def eta_S_(self):
+        """(eq.105, P.328)"""
+        return (self.Omega**2-self.xi_**2)**(1/2)
+
+    @property
+    def D_(self):
+        """(eq.117, P.331)"""
+        return (self.xi_**2-self.eta_S_**2)**2*np.sin(self.eta_P_)*np.cos(self.eta_S_)+4*self.xi_**2*self.eta_P_*self.eta_S_*np.cos(self.eta_P_)*np.sin(self.eta_S_)
+
+    def get_scatter(self):
+        """
+        for loop xi_(xi) value and Omega(omega) value to find the combination that makes D_ = 0
+        """
+        d_xi = .001
+        d_omega = .001
+        self.xi = np.arange(0, 5, d_xi)
+        self.omega = np.arange(0, 5, d_omega)
+        self.xi, self.omega = np.meshgrid(self.xi, self.omega)
+        indices = np.where(np.abs(self.D_ - 0) < 0.01)
+        xi = indices[1]
+        omega = indices[0]
+        xi_ = xi*d_xi*self.d
+        Omega = omega*d_omega*self.d/self.c_S
+        return xi_, Omega
+
+    def c_div_cS(self, Omega, xi_):
+        # (eq.103, P.328)
+        xi = xi_/self.d
+        omega = Omega*self.c_S/self.d
+        # (before eq.112, P.330)
+        c = omega/xi
+        return c/self.c_S
+
+    def fd(self, Omega):
+        # (before eq.112, P.330)
+        omega = Omega*self.c_S/self.d
+        fd = omega/(2*PI)*self.d
+        return fd
+
+    def get_xi_and_omega_by_fd(self, fd):
+        """use fd to calculate omega and xi
+
+        Args:
+            fd (float): frequency in Hz, get by dispersion curve
+        """
+        xi_, Omega = self.get_scatter()
+        c_div_cS = self.c_div_cS(Omega, xi_)
+        _fd = self.fd(Omega)
+        # find the closest fd in the scatter set
+        index = np.argmin(np.abs(_fd-fd))
+        fd = _fd[index]  # scalar
+        c_div_cS = c_div_cS[index]  # scalar
+        omega = fd*2*PI/self.d
+        xi = omega/c_div_cS*self.c_S  # (before eq.112, P.330)
+        return xi, omega
+
+    def u_x(self, x, y, t):
+        """(eq. 135, P. 336)"""
+        return 1j*self.C*self.eta_S*(2*self.xi**2*np.sin(self.eta_S*self.d)*np.sin(self.eta_P*y)-(self.xi**2-self.eta_S**2)*np.sin(self.eta_P*self.d)*np.sin(self.eta_S*y))*np.exp(1j*(self.xi*x-self.omega*t))
+
+    def u_y(self, x, y, t):
+        """(eq. 135, P. 336)
+
+        Note: the sign of the equation is different from the book, in order to generate the same wave field as the book
+        """
+        return -self.C*self.xi*(2*self.eta_P*self.eta_S*np.sin(self.eta_S*self.d)*np.cos(self.eta_P*y)+(self.xi**2-self.eta_S**2)*np.sin(self.eta_P*self.d)*np.cos(self.eta_S*y))*np.exp(1j*(self.xi*x-self.omega*t))
+
+    @property
+    def c_L(self):
+        """Lamb wave speed"""
+        return self.omega/self.xi
+
+    def construct(self):
+        axes = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[0, 60, 10],
+            y_range=[-self.d, self.d, .5],
+            # 坐标轴长度（比例）
+            x_length=12,
+            y_length=4,
+            axis_config={"color": GREEN},
+            x_axis_config={
+                "numbers_to_include": np.arange(0, 60.01, 10),
+            },
+            y_axis_config={
+                "numbers_to_include": np.arange(-self.d-.01, self.d+.01, .5),
+            },
+            tips=False,  # 坐标箭头
+        )
+
+        t = ValueTracker(0)
+        t.add_updater(lambda m, dt: m.increment_value(dt))
+
+        self.xi, self.omega = self.get_xi_and_omega_by_fd(.1)  # A0
+
+        def func(x, y):
+            P = self.u_x(x, y, t.get_value()).real
+            SV = self.u_y(x, y, t.get_value()).real
+            return P, SV
+
+        # adjust the rate of axis to make the vector field look good
+        rate_x = .5
+        rate_y = .5
+
+        def Field():
+            vgroup = VGroup()
+            for x in np.arange(0, 60.1, 1):
+                for y in np.arange(-self.d, self.d+.1, .1):
+                    P, SV = func(x, y)
+                    vector = Arrow(start=axes.coords_to_point(x, y),
+                                   end=axes.coords_to_point(
+                                       x+rate_x*P, y+rate_y*SV),
+                                   buff=0)
+                    vgroup.add(vector)
+            return vgroup
+
+        field = Field()
+
+        def update_field(mobj):
+            vgroup = Field()
+            mobj.become(vgroup)
+
+        field.add_updater(update_field)
+
+        self.add(axes, field, t)
+        self.wait(2*PI/self.omega)
