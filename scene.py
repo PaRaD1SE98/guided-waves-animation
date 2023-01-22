@@ -1314,6 +1314,196 @@ class FlexuralWaveDispersion(Scene):
         self.wait(2*PI)
 
 
+class FlexuralWaveDispersion2(Scene):
+    """c_F change with omega"""
+    rho = 200  # density (assumed constant)
+    E = 1  # elastic modulus (assumed constant)
+    h = 100  # cross section height (assumed constant) (above eq.196, P.246)
+    b = 1  # cross section width (assumed constant) (above eq.196, P.246)
+    I = b*h**3/12  # moment of inertia (eq.196, P.246)
+    A = h*b  # cross section area
+    m = rho*A  # mass of the infinitesimal element dx (above eq.10, P.218)
+    a = (E*I/m)**(1/4)  # characteristic length (eq.196, P.246)
+
+    # angular frequency (eq.50, P.225) make omega1 > omega2 so that group velocity is positive
+    omega = 1
+    omega1 = 2
+    omega2 = 3
+
+    c_F = a*omega**(1/2)  # flexural wave speed (eq.209, P.247)
+    c_F1 = a*omega1**(1/2)  # flexural wave speed (eq.209, P.247)
+    c_F2 = a*omega2**(1/2)  # flexural wave speed (eq.209, P.247)
+
+    gamma = omega / c_F
+    gamma1 = omega1 / c_F1
+    gamma2 = omega2 / c_F2
+
+    d_gamma = gamma2-gamma1
+    d_omega = omega2-omega1
+
+    gamma_avg = (gamma1+gamma2)/2
+    omega_avg = (omega1+omega2)/2
+
+    c_g = d_omega/d_gamma  # group velocity (eq.221, P.252)
+    c_avg = omega_avg/gamma_avg  # average phase velocity (eq.220, P.251)
+
+    def w(self, x, t):
+        """flexural wave vertical displacement"""
+        return np.exp(1j*(self.gamma*x-self.omega*t))
+
+    def w1(self, x, t):
+        """flexural wave vertical displacement"""
+        return np.exp(1j*(self.gamma1*x-self.omega1*t))
+
+    def w2(self, x, t):
+        """flexural wave vertical displacement"""
+        return np.exp(1j*(self.gamma2*x-self.omega2*t))
+
+    def gaussian(self, x, t, c=None, tau=None):
+        """gaussian distribution with changing center have the same speed with c_g
+
+        Args:
+            sigma (float, optional): width. Defaults bind to time.
+
+        https://en.wikipedia.org/wiki/Normal_distribution#Alternative_parameterizations
+        """
+        # mu defining the center of the distribution
+        # make the center move with the group velocity
+        c = self.c_g if c is None else c
+        mu = c*t
+
+        #  precision tau defining the width of the distribution
+        # higher precision means narrower distribution
+        # tau = 1/sigma**2
+        # Note that the peak decreases as width increases
+        tau = np.exp(-t) if tau is None else tau
+
+        return 5*np.sqrt(tau/(2*PI))*np.exp(-tau*(x-mu)**2/2)
+
+    def u(self, x, t):
+        modulation1 = self.gaussian(x, t, c=self.c_F1, tau=.05)
+        modulation2 = self.gaussian(x, t, c=self.c_F2, tau=.05)
+        modulationg = self.gaussian(x, t, c=self.c_g, tau=.05)
+        u1 = self.w1(x, t)
+        u2 = self.w2(x, t)
+        ver1 = u1*modulation1+u2*modulation2
+        ver2 = (u1+u2)*modulationg
+        ver3 = u1+u2
+        return ver1
+
+    def packet(self, x, t):
+        return np.cos(self.d_gamma*x/2-self.d_omega*t/2)
+
+    def construct(self):
+        axes = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[0, 20*PI, PI],
+            y_range=[-1, 1, 0.5],
+            # 坐标轴长度（比例）
+            x_length=12,
+            y_length=4,
+            axis_config={"color": GREEN},
+        )
+        self.add(axes)
+        t = ValueTracker(0)
+
+        def update_t(m, dt):
+            m.increment_value(dt)
+        t.add_updater(update_t)
+
+        def get_plot():
+            return axes.plot(lambda x: self.u(x, t.get_value()), color=BLUE, use_vectorized=True)
+        plot = always_redraw(get_plot)
+
+        def get_envelope():
+            return axes.plot(lambda x: self.packet(x, t.get_value()), color=RED, use_vectorized=True)
+        envelope = always_redraw(get_envelope)
+
+        def get_gaussian1():
+            return axes.plot(lambda x: self.gaussian(x, t.get_value(), c=self.c_F1, tau=.05), color=GREEN, use_vectorized=True)
+        gaussian1 = always_redraw(get_gaussian1)
+
+        def get_gaussian2():
+            return axes.plot(lambda x: self.gaussian(x, t.get_value(), c=self.c_F2, tau=.05), color=YELLOW, use_vectorized=True)
+        gaussian2 = always_redraw(get_gaussian2)
+
+        def get_gaussiang():
+            return axes.plot(lambda x: self.gaussian(x, t.get_value(), c=self.c_g, tau=.05), color=PURPLE, use_vectorized=True)
+        gaussiang = always_redraw(get_gaussiang)
+
+        def get_gaussian_add():
+            return axes.plot(lambda x: (self.gaussian(x, t.get_value(), c=self.c_F1, tau=.05)+self.gaussian(x, t.get_value(), c=self.c_F2, tau=.05))/2, color=ORANGE, use_vectorized=True)
+        gaussian_add = always_redraw(get_gaussian_add)
+        self.add(t)
+        self.add(plot)
+        # self.add(packet)
+        self.add(gaussian1)
+        self.add(gaussian2)
+        # self.add(gaussiang)
+        self.add(gaussian_add)
+        self.wait(8*PI)
+
+
+class FlexuralWaveDispersion3(Scene):
+    """c_F change with omega"""
+    rho = 200  # density (assumed constant)
+    E = 1  # elastic modulus (assumed constant)
+    h = 100  # cross section height (assumed constant) (above eq.196, P.246)
+    b = 1  # cross section width (assumed constant) (above eq.196, P.246)
+    I = b*h**3/12  # moment of inertia (eq.196, P.246)
+    A = h*b  # cross section area
+    m = rho*A  # mass of the infinitesimal element dx (above eq.10, P.218)
+    a = (E*I/m)**(1/4)  # characteristic length (eq.196, P.246)
+
+    # angular frequency (eq.50, P.225)
+    omega = 1
+
+    @property
+    def c_F(self):
+        return self.a*self.omega**(1/2)
+
+    @property
+    def gamma(self):
+        return self.omega/self.c_F
+
+    def w(self, x, t):
+        """flexural wave vertical displacement"""
+        return np.exp(1j*(self.gamma*x-self.omega*t))
+
+    def u(self, x, t):
+        u = []
+        for i in range(1000):
+            self.omega = .1*(i+1)
+            wave = self.w(x, t)
+            u.append(wave)
+        return sum(u)/len(u)
+    
+    def construct(self):
+        axes = Axes(
+            # 坐标轴数值范围和步长
+            x_range=[0, 40*PI, 2*PI],
+            y_range=[-1, 1, 0.5],
+            # 坐标轴长度（比例）
+            x_length=12,
+            y_length=4,
+            axis_config={"color": GREEN},
+        )
+        self.add(axes)
+        t = ValueTracker(0)
+
+        def update_t(m, dt):
+            m.increment_value(dt)
+        t.add_updater(update_t)
+
+        def get_plot():
+            return axes.plot(lambda x: self.u(x, t.get_value()), color=BLUE, use_vectorized=True, x_range=[0, 40*PI, .1])
+        plot = always_redraw(get_plot)
+
+        self.add(t)
+        self.add(plot)
+        self.wait(2*PI)
+
+
 class GaussianToneBurst(Scene):
     c = 1  # wave speed
     k = 5  # wave number
@@ -1344,7 +1534,7 @@ class GaussianToneBurst(Scene):
     def u(self, x, t):
         """without dispersion
 
-        an unchanged gaussian distribution * wave 
+        an unchanged gaussian distribution * wave
         becomes a tone burst without dispersion
         """
         return self.gaussian(x, t, sigma=5)*self.f(x, t)
@@ -1412,9 +1602,9 @@ class GaussianToneBurst(Scene):
 
 class GroupVelocity(Scene):
     gamma1 = 10  # wave speed
-    gamma2 = 14
+    gamma2 = 15
     omega1 = 1  # frequency
-    omega2 = 4
+    omega2 = 1.5
 
     d_gamma = gamma2-gamma1
     d_omega = omega2-omega1
@@ -1487,7 +1677,7 @@ class ShearVerticalWaveVField(Scene):
     gamma = omega/c  # wave number
 
     def w(self, x, t):
-        """shear wave
+        """shear vertical wave
 
         Note: Purely shear wave and no flexure takes place. (P. 268)
         """
@@ -1530,8 +1720,8 @@ class ShearVerticalWaveVField(Scene):
                     result = func(x, z)
                     vector = Arrow(start=axes.coords_to_point(x, z),
                                    end=axes.coords_to_point(
-                                       x, z+rate_y*result),
-                                   buff=0)
+                        x, z+rate_y*result),
+                        buff=0)
                     vgroup.add(vector)
             return vgroup
 
@@ -1602,8 +1792,8 @@ class PressureWaveVField(Scene):
                     result = func(x, z)
                     vector = Arrow(start=axes.coords_to_point(x, z),
                                    end=axes.coords_to_point(
-                                       x+rate_x*result, z),
-                                   buff=0)
+                        x+rate_x*result, z),
+                        buff=0)
                     vgroup.add(vector)
             return vgroup
 
@@ -1634,7 +1824,7 @@ class RayleighWaveVField(Scene):
 
     def u_x(self, x, y, t):
         """pressure wave
-
+        (eq.31,33, p.313-314)
         Note: Add a negative y to fit the author provided animation.
         """
         y = -y
@@ -1645,7 +1835,7 @@ class RayleighWaveVField(Scene):
 
     def u_y(self, x, y, t):
         """shear-vertical wave
-
+        (eq.31,33, p.313-314)
         Note: Add a negative y to fit the author provided animation.
         """
         y = -y
@@ -1694,8 +1884,8 @@ class RayleighWaveVField(Scene):
                     P, SV = func(x, y)
                     vector = Arrow(start=axes.coords_to_point(x, y),
                                    end=axes.coords_to_point(
-                                       x+rate_x*P, y+rate_y*SV),
-                                   buff=0)
+                        x+rate_x*P, y+rate_y*SV),
+                        buff=0)
                     vgroup.add(vector)
             return vgroup
 
@@ -1834,7 +2024,7 @@ class SHDispersionCurve(Scene):
 
     n = 0  # mode number
 
-    @property
+    @ property
     def eta(self):
         """SH Wave frequency"""
         if self.C1 == 0 and self.C2 != 0:  # symmetric
@@ -1969,47 +2159,47 @@ class LambWaveSymmetricVField(Scene):
     k = (2*(1-v)/(1-2*v))**(1/2)  # (eq.26, P. 312)
     c_S = c_P/k  # speed of SV wave (eq.26, P. 312)
 
-    @property
+    @ property
     def eta_P(self):
         """(eq.83, P.325)"""
         return (self.omega**2/self.c_P**2-self.xi**2)**(1/2)
 
-    @property
+    @ property
     def eta_S(self):
         """(eq.83, P.325)"""
         return (self.omega**2/self.c_S**2-self.xi**2)**(1/2)
 
-    @property
+    @ property
     def f(self):
         """frequency (before eq.103, P.328)"""
         return self.omega/(2*PI)
 
-    @property
+    @ property
     def xi_(self):
         """(before eq.103, P.328)"""
         return self.xi*self.d
 
-    @property
+    @ property
     def D(self):
         """(eq.101, P.328)"""
         return (self.xi**2-self.eta_S**2)**2*np.cos(self.eta_P*self.d)*np.sin(self.eta_S*self.d)+4*self.xi**2*self.eta_P*self.eta_S*np.sin(self.eta_P*self.d)*np.cos(self.eta_S*self.d)
 
-    @property
+    @ property
     def Omega(self):
         """(before eq.103, P.328)"""
         return self.omega*self.d/self.c_S
 
-    @property
+    @ property
     def eta_P_(self):
         """(eq.105, P.328)"""
         return (self.Omega**2/self.k**2-self.xi_**2)**(1/2)
 
-    @property
+    @ property
     def eta_S_(self):
         """(eq.105, P.328)"""
         return (self.Omega**2-self.xi_**2)**(1/2)
 
-    @property
+    @ property
     def D_(self):
         """(eq.108, P.328)"""
         return (self.xi_**2-self.eta_S_**2)**2*np.cos(self.eta_P_)*np.sin(self.eta_S_)+4*self.xi_**2*self.eta_P_*self.eta_S_*np.sin(self.eta_P_)*np.cos(self.eta_S_)
@@ -2069,7 +2259,7 @@ class LambWaveSymmetricVField(Scene):
         """(eq. 127, P. 334)"""
         return self.C*self.xi*(2*self.eta_P*self.eta_S*np.cos(self.eta_S*self.d)*np.sin(self.eta_P*y)+(self.xi**2-self.eta_S**2)*np.cos(self.eta_P*self.d)*np.sin(self.eta_S*y))*np.exp(1j*(self.xi*x-self.omega*t))
 
-    @property
+    @ property
     def c_L(self):
         """Lamb wave speed"""
         return self.omega/self.xi
@@ -2113,8 +2303,8 @@ class LambWaveSymmetricVField(Scene):
                     P, SV = func(x, y)
                     vector = Arrow(start=axes.coords_to_point(x, y),
                                    end=axes.coords_to_point(
-                                       x+rate_x*P, y+rate_y*SV),
-                                   buff=0)
+                        x+rate_x*P, y+rate_y*SV),
+                        buff=0)
                     vgroup.add(vector)
             return vgroup
 
@@ -2142,47 +2332,47 @@ class LambWaveAntiSymmetricVField(Scene):
     k = (2*(1-v)/(1-2*v))**(1/2)  # (eq.26, P. 312) (eq.474,475, P. 292)
     c_S = c_P/k  # speed of SV wave (eq.26, P. 312)
 
-    @property
+    @ property
     def eta_P(self):
         """(eq.83, P.325)"""
         return (self.omega**2/self.c_P**2-self.xi**2)**(1/2)
 
-    @property
+    @ property
     def eta_S(self):
         """(eq.83, P.325)"""
         return (self.omega**2/self.c_S**2-self.xi**2)**(1/2)
 
-    @property
+    @ property
     def f(self):
         """frequency (before eq.103, P.328)"""
         return self.omega/(2*PI)
 
-    @property
+    @ property
     def xi_(self):
         """(before eq.103, P.328)"""
         return self.xi*self.d
 
-    @property
+    @ property
     def D(self):
         """(eq.115, P.331)"""
         return (self.xi**2-self.eta_S**2)**2*np.sin(self.eta_P*self.d)*np.cos(self.eta_S*self.d)+4*self.xi**2*self.eta_P*self.eta_S*np.cos(self.eta_P*self.d)*np.sin(self.eta_S*self.d)
 
-    @property
+    @ property
     def Omega(self):
         """(before eq.103, P.328)"""
         return self.omega*self.d/self.c_S
 
-    @property
+    @ property
     def eta_P_(self):
         """(eq.105, P.328)"""
         return (self.Omega**2/self.k**2-self.xi_**2)**(1/2)
 
-    @property
+    @ property
     def eta_S_(self):
         """(eq.105, P.328)"""
         return (self.Omega**2-self.xi_**2)**(1/2)
 
-    @property
+    @ property
     def D_(self):
         """(eq.117, P.331)"""
         return (self.xi_**2-self.eta_S_**2)**2*np.sin(self.eta_P_)*np.cos(self.eta_S_)+4*self.xi_**2*self.eta_P_*self.eta_S_*np.cos(self.eta_P_)*np.sin(self.eta_S_)
@@ -2247,7 +2437,7 @@ class LambWaveAntiSymmetricVField(Scene):
         """
         return -self.C*self.xi*(2*self.eta_P*self.eta_S*np.sin(self.eta_S*self.d)*np.cos(self.eta_P*y)+(self.xi**2-self.eta_S**2)*np.sin(self.eta_P*self.d)*np.cos(self.eta_S*y))*np.exp(1j*(self.xi*x-self.omega*t))
 
-    @property
+    @ property
     def c_L(self):
         """Lamb wave speed"""
         return self.omega/self.xi
@@ -2291,8 +2481,8 @@ class LambWaveAntiSymmetricVField(Scene):
                     P, SV = func(x, y)
                     vector = Arrow(start=axes.coords_to_point(x, y),
                                    end=axes.coords_to_point(
-                                       x+rate_x*P, y+rate_y*SV),
-                                   buff=0)
+                        x+rate_x*P, y+rate_y*SV),
+                        buff=0)
                     vgroup.add(vector)
             return vgroup
 
