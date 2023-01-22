@@ -2139,7 +2139,7 @@ class LambWaveAntiSymmetricVField(Scene):
     v = 0.33  # Poisson's ratio https://zh.wikipedia.org/zh-cn/%E6%B3%8A%E6%9D%BE%E6%AF%94
     c_P = 1  # speed of P wave
 
-    k = (2*(1-v)/(1-2*v))**(1/2)  # (eq.26, P. 312)
+    k = (2*(1-v)/(1-2*v))**(1/2)  # (eq.26, P. 312) (eq.474,475, P. 292)
     c_S = c_P/k  # speed of SV wave (eq.26, P. 312)
 
     @property
