@@ -1936,7 +1936,7 @@ class SHWaveXSymmetricVField(Scene):
     def u_z(self, x, y, t):
         """SH waves
 
-        Note: (eq.36, p.314)
+        Note: (eq.43, p.314)
         """
         return self.h(y)*np.exp(1j*(self.xi*x-self.omega*t))
 
