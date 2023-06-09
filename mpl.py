@@ -252,5 +252,5 @@ def get_sample():
 
 if __name__ == '__main__':
     # nonlinear_root_search()
-    # dispersion_curve()
-    get_sample()
+    dispersion_curve()
+    # get_sample()
